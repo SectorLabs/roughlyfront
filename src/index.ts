@@ -1,5 +1,1 @@
-const helloWorld = (): string => {
-    return "hello world";
-};
-
-export { helloWorld };
+export { main } from "./cli";
