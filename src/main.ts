@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
-import { program } from "commander";
+import * as fs from "fs";
 import * as http from "http";
+import consola from "consola";
+import { program } from "commander";
 
+import { LambdaEdgeFunction } from "./function";
 import { createRequestListener } from "./requestListener";
-import { evaluateFunctionCode } from "./functionCode";
 
 export const main = async (args: string[]): Promise<void> => {
     program
@@ -13,12 +15,12 @@ export const main = async (args: string[]): Promise<void> => {
         .requiredOption("-p, --port <port>", "port to listen on", Number, 8787)
         .requiredOption("-h, --host <host>", "host to listen on", "0.0.0.0")
         .requiredOption(
-            "-s, --handler-script <js script>",
+            "-f, --function-file <js script>",
             "handler script to invoke",
             "index.js",
         )
         .requiredOption(
-            "-n, --handler-name <name>",
+            "-n, --function-handler <name>",
             "handler function to invoke",
             "handler",
         );
@@ -26,12 +28,23 @@ export const main = async (args: string[]): Promise<void> => {
     await program.parse(args);
     const options = program.opts();
 
-    const handler = evaluateFunctionCode(
-        options["handlerScript"],
-        options["handlerName"],
+    const func = new LambdaEdgeFunction(
+        options["functionFile"],
+        options["functionHandler"],
     );
-    const requestListener = createRequestListener(handler);
+    func.evaluate();
 
+    fs.watch(options["functionFile"], () => {
+        func.evaluate();
+        consola.info(`Function code changed, reloaded it`);
+    });
+
+    consola.success(`Watching ${options["functionFile"]}`);
+
+    const requestListener = createRequestListener(func);
     const server = http.createServer(requestListener);
-    server.listen(options["port"], options["host"]);
+
+    server.listen(options["port"], options["host"], () => {
+        consola.success(`Listening on ${options["host"]}:${options["port"]}`);
+    });
 };

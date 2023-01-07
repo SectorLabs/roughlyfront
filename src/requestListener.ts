@@ -1,10 +1,10 @@
 import type * as http from "http";
 
-import type { FunctionHandler } from "./functionHandler";
+import type { LambdaEdgeFunction } from "./function";
 
 export const createRequestListener =
     (
-        _handler: FunctionHandler, // eslint-disable-line @typescript-eslint/no-unused-vars
+        _func: LambdaEdgeFunction, // eslint-disable-line @typescript-eslint/no-unused-vars
     ) =>
     async (
         _request: http.IncomingMessage,
