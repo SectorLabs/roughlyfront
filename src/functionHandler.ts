@@ -5,7 +5,7 @@ import type {
     Context,
 } from "aws-lambda";
 
-export type HandlerFunction = (
+export type FunctionHandler = (
     event: CloudFrontRequestEvent,
     context: Context,
 ) => Promise<CloudFrontRequest | CloudFrontResponse>;

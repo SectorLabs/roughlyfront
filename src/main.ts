@@ -3,8 +3,8 @@
 import { program } from "commander";
 import * as http from "http";
 
-import { createRequestListener } from "./requestListener.js";
-import { evaluateHandlerScript } from "./handlerScript";
+import { createRequestListener } from "./requestListener";
+import { evaluateFunctionCode } from "./functionCode";
 
 export const main = async (args: string[]): Promise<void> => {
     program
@@ -26,7 +26,7 @@ export const main = async (args: string[]): Promise<void> => {
     await program.parse(args);
     const options = program.opts();
 
-    const handler = evaluateHandlerScript(
+    const handler = evaluateFunctionCode(
         options["handlerScript"],
         options["handlerName"],
     );

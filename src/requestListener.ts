@@ -1,10 +1,10 @@
 import type * as http from "http";
 
-import type { HandlerFunction } from "./types.js";
+import type { FunctionHandler } from "./functionHandler";
 
 export const createRequestListener =
     (
-        _handler: HandlerFunction, // eslint-disable-line @typescript-eslint/no-unused-vars
+        _handler: FunctionHandler, // eslint-disable-line @typescript-eslint/no-unused-vars
     ) =>
     async (
         _request: http.IncomingMessage,
