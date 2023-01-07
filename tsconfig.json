@@ -1,9 +1,9 @@
 {
-  "extends": "@tsconfig/node16-strictest-esm/tsconfig.json",
-  "compilerOptions": {
-    "outDir": "./dist",
-    "declaration": true,
-    "declarationMap": true
-  },
-  "include": ["./src"]
+    "extends": "@tsconfig/node16-strictest-esm/tsconfig.json",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "declaration": true,
+        "declarationMap": true
+    },
+    "include": ["./src"]
 }
