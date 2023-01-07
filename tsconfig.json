@@ -1,9 +1,10 @@
 {
-    "extends": "@tsconfig/node16-strictest-esm/tsconfig.json",
+    "extends": "@tsconfig/node16-strictest/tsconfig.json",
     "compilerOptions": {
         "outDir": "./dist",
         "declaration": true,
-        "declarationMap": true
+        "declarationMap": true,
+        "types": ["node", "aws-lambda"]
     },
     "include": ["./src"]
 }

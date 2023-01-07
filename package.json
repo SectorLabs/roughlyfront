@@ -22,11 +22,8 @@
     },
     "license": "MIT",
     "author": "Sector Labs <open-source@sectorlabs.ro>",
-    "type": "module",
-    "imports": {
-        "#self/*.js": "./dist/*.js"
-    },
-    "exports": "./dist/index.js",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "bin": {
         "roughlyfront": "./cli.js"
     },
@@ -41,10 +38,12 @@
         "lint:fix": "npm run lint -- --fix"
     },
     "dependencies": {
-        "commander": "^9.4.1"
+        "commander": "^9.4.1",
+        "node-fetch-commonjs": "^3.2.4"
     },
     "devDependencies": {
-        "@tsconfig/node16-strictest-esm": "^1.0.3",
+        "@tsconfig/node16-strictest": "^1.0.3",
+        "@types/aws-lambda": "^8.10.109",
         "@types/node": "^18.11.18",
         "@typescript-eslint/eslint-plugin": "^5.48.0",
         "@typescript-eslint/parser": "^5.48.0",
