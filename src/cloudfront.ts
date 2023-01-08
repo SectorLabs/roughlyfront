@@ -8,6 +8,7 @@ import { Headers } from "node-fetch-commonjs";
 
 import type { Request } from "./request";
 import type { Response } from "./response";
+import type { ClientRequest } from "./client";
 import {
     AWS_REGION,
     AWS_ACCOUNT_ID,
@@ -28,40 +29,75 @@ export type CloudFrontEventType =
     | "viewer-response";
 
 export const constructCloudFrontRequest = (
-    request: Request,
+    clientRequest: ClientRequest,
 ): CloudFrontRequest => {
+    const originHeaders = new Headers(
+        Array.from(clientRequest.headers.entries()),
+    );
+    originHeaders.set("X-Amz-Cf-Id", clientRequest.id);
+    originHeaders.set(
+        "CloudFront-Viewer-Address",
+        `${clientRequest.trueClientIP}:${clientRequest.clientPort}`,
+    );
+    originHeaders.set("CloudFront-Viewer-ASN", "8708");
+    originHeaders.set("CloudFront-Viewer-Country", "RO");
+    originHeaders.set("CloudFront-Viewer-City", "Cluj-Napoca");
+    originHeaders.set("CloudFront-Viewer-Country-Name", "Romania");
+    originHeaders.set("CloudFront-Viewer-Country-Region", "CJ");
+    originHeaders.set("CloudFront-Viewer-Country-Region-Name", "Cluj");
+    originHeaders.set("CloudFront-Viewer-Latitude", "46.7834818");
+    originHeaders.set("CloudFront-Viewer-Longitude", "23.5464732");
+    originHeaders.set("CloudFront-Viewer-Postal-Code", "4000");
+    originHeaders.set("CloudFront-Viewer-Time-Zone", "Europe/Bucharest");
+    originHeaders.set(
+        "CloudFront-Viewer-HTTP-Version",
+        clientRequest.protocolVersion,
+    );
+    originHeaders.set(
+        "CloudFront-Forwarded-Proto",
+        clientRequest.url.protocol.slice(0, -1),
+    );
+    originHeaders.set(
+        "X-Forwarded-For",
+        [...clientRequest.forwardedIPs, clientRequest.clientIP].join(", "),
+    );
+
     const cfRequest: CloudFrontRequest = {
-        clientIp: request.trueClientIP,
-        headers: Array.from(request.headers.entries()).reduce(
+        clientIp: clientRequest.trueClientIP,
+        headers: Array.from(originHeaders.entries()).reduce(
             (acc, [name, value]) => ({
                 ...acc,
                 [name]: [{ key: name, value }],
             }),
             {},
         ),
-        method: request.method,
-        querystring: request.url.searchParams.toString(),
-        uri: request.url.pathname,
+        method: clientRequest.method,
+        querystring: clientRequest.url.searchParams.toString(),
+        uri: clientRequest.url.pathname,
+        // TODO: allow origin selection based on behaviors the
+        // user specified
         origin: {
             custom: {
                 customHeaders: {},
-                domainName: request.url.host,
+                domainName: clientRequest.url.host,
                 keepaliveTimeout: 5,
-                path: request.url.pathname,
-                port: 80,
-                protocol: request.url.protocol.slice(0, -1) as "http" | "https",
+                path: clientRequest.url.pathname,
+                port: clientRequest.url.protocol === "https:" ? 443 : 80,
+                protocol: clientRequest.url.protocol.slice(0, -1) as
+                    | "http"
+                    | "https",
                 readTimeout: 30,
                 sslProtocols: [],
             },
         },
     };
 
-    if (request.body && request.body.length) {
+    if (clientRequest.body && clientRequest.body.length) {
         cfRequest.body = {
             inputTruncated: false,
             action: "read-only",
             encoding: "base64",
-            data: request.body.toString("base64"),
+            data: clientRequest.body.toString("base64"),
         };
     }
 
@@ -70,25 +106,25 @@ export const constructCloudFrontRequest = (
 
 export const constructCloudFrontRequestEvent = (
     eventType: CloudFrontEventType,
-    request: Request,
+    clientRequest: ClientRequest,
 ): CloudFrontRequestEvent => ({
     Records: [
         {
             cf: {
                 config: {
-                    distributionDomainName: request.url.host,
+                    distributionDomainName: clientRequest.url.host,
                     distributionId: "ROUGHLYFRONT1",
                     eventType,
-                    requestId: request.id,
+                    requestId: clientRequest.id,
                 },
-                request: constructCloudFrontRequest(request),
+                request: constructCloudFrontRequest(clientRequest),
             },
         },
     ],
 });
 
 export const constructCloudFrontRequestContext = (
-    request: Request,
+    clientRequest: ClientRequest,
 ): Context => {
     return {
         callbackWaitsForEmptyEventLoop: false,
@@ -96,7 +132,7 @@ export const constructCloudFrontRequestContext = (
         functionVersion: AWS_LAMBDA_FUNCTION_VERSION.toString(),
         invokedFunctionArn: `arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:aws:function:${AWS_LAMBDA_FUNCTION_NAME}`,
         memoryLimitInMB: AWS_LAMBDA_FUNCTION_MEMORY_SIZE.toString(),
-        awsRequestId: request.id,
+        awsRequestId: clientRequest.id,
         logGroupName: AWS_LAMBDA_FUNCTION_VERSION.toString(),
         logStreamName: AWS_LAMBDA_FUNCTION_VERSION.toString(),
 
@@ -113,6 +149,42 @@ export const constructCloudFrontRequestContext = (
         /* eslint-enable @typescript-eslint/no-unused-vars */
         /* eslint-enable @typescript-eslint/no-explicit-any */
         /* eslint-enable @typescript-eslint/no-empty-function */
+    };
+};
+
+export const constructRequestFromCloudFront = (
+    cfRequest: CloudFrontRequest,
+): Request => {
+    const headers = new Headers();
+    Object.entries(cfRequest.headers || {}).forEach(([name, values]) => {
+        values.forEach(({ key, value }) => {
+            headers.append(key || name, value);
+        });
+    });
+
+    if (!cfRequest.origin?.custom) {
+        throw new Error("Cannot figure out what origin to forward request to");
+    }
+
+    const host = cfRequest.origin.custom.domainName;
+    const protocol = cfRequest.origin.custom.protocol;
+
+    let uri = cfRequest.origin.custom.path;
+    if (cfRequest.querystring) {
+        uri += `?${cfRequest.querystring}`;
+    }
+
+    const bodyEncoding =
+        cfRequest.body?.encoding === "base64" ? "base64" : undefined;
+    const body = cfRequest.body?.data
+        ? Buffer.from(cfRequest.body.data, bodyEncoding)
+        : null;
+
+    return {
+        method: cfRequest.method,
+        url: new URL(uri, `${protocol}://${host}`),
+        headers,
+        body,
     };
 };
 

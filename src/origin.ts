@@ -1,38 +1,34 @@
-import { Request, cloneRequest } from "./request";
+import type { Request } from "./request";
+import type { Response } from "./response";
 
-export const constructOriginRequest = (request: Request): Request => {
-    const originRequest = cloneRequest(request);
+import fetch, { Headers } from "node-fetch-commonjs";
 
-    originRequest.headers.set("X-Amz-Cf-Id", request.id);
-    originRequest.headers.set(
-        "CloudFront-Viewer-Address",
-        `${request.trueClientIP}:${request.clientPort}`,
-    );
-    originRequest.headers.set("CloudFront-Viewer-ASN", "8708");
-    originRequest.headers.set("CloudFront-Viewer-Country", "RO");
-    originRequest.headers.set("CloudFront-Viewer-City", "Cluj-Napoca");
-    originRequest.headers.set("CloudFront-Viewer-Country-Name", "Romania");
-    originRequest.headers.set("CloudFront-Viewer-Country-Region", "CJ");
-    originRequest.headers.set("CloudFront-Viewer-Country-Region-Name", "Cluj");
-    originRequest.headers.set("CloudFront-Viewer-Latitude", "46.7834818");
-    originRequest.headers.set("CloudFront-Viewer-Longitude", "23.5464732");
-    originRequest.headers.set("CloudFront-Viewer-Postal-Code", "4000");
-    originRequest.headers.set(
-        "CloudFront-Viewer-Time-Zone",
-        "Europe/Bucharest",
-    );
-    originRequest.headers.set(
-        "CloudFront-Viewer-HTTP-Version",
-        request.protocolVersion,
-    );
-    originRequest.headers.set(
-        "CloudFront-Forwarded-Proto",
-        request.url.protocol.slice(0, -1),
-    );
-    originRequest.headers.set(
-        "X-Forwarded-For",
-        [...request.forwardedIPs, request.clientIP].join(", "),
-    );
+export const forwardToOrigin = async (request: Request): Promise<Response> => {
+    const response = await fetch(request.url.href, {
+        method: request.method,
+        headers: {
+            ...Array.from(request.headers.entries()).reduce(
+                (acc, [name, value]) => ({
+                    ...acc,
+                    [name]: value,
+                }),
+                {},
+            ),
+            // This allows clients to determine whether the request
+            // already passed through Roughlyflare or not.
+            //
+            // Miniflare for Cloudflare does something similiar
+            // and sets the `MF-Loop` header.
+            "RF-Loop": "1",
+        },
+        body: request.body,
+    });
 
-    return request;
+    const responseBody = await response.arrayBuffer();
+
+    return {
+        status: response.status,
+        headers: new Headers(Object.entries(response.headers)),
+        body: Buffer.from(responseBody),
+    };
 };

@@ -1,13 +1,14 @@
 import type * as http from "http";
-import type { CloudFrontResultResponse } from "aws-lambda";
+import type { CloudFrontRequest, CloudFrontResultResponse } from "aws-lambda";
 
 import type { Lambda } from "./lambda";
 import { constructClientRequest } from "./client";
 import { writeServerResponse } from "./server";
-import { constructOriginRequest } from "./origin";
+import { forwardToOrigin } from "./origin";
 import {
     CloudFrontEventType,
     CloudFrontLambdaResultType,
+    constructRequestFromCloudFront,
     constructCloudFrontRequestEvent,
     constructCloudFrontRequestContext,
     constructResponseFromCloudFront,
@@ -21,29 +22,34 @@ export const createRequestListener =
         outgoingMessage: http.ServerResponse,
     ): Promise<void> => {
         const clientRequest = await constructClientRequest(incomingMessage);
-        const originRequest = constructOriginRequest(clientRequest);
 
         const cfRequestEvent = constructCloudFrontRequestEvent(
             eventType,
-            originRequest,
+            clientRequest,
         );
         const cfRequestContext =
-            constructCloudFrontRequestContext(originRequest);
+            constructCloudFrontRequestContext(clientRequest);
 
         const result = await lambda.invoke(cfRequestEvent, cfRequestContext);
         const resultType = detectCloudFrontLambdaResult(result);
         switch (resultType) {
-            case CloudFrontLambdaResultType.REQUEST:
-                outgoingMessage.writeHead(200);
-                outgoingMessage.end("hello world");
-                break;
+            case CloudFrontLambdaResultType.REQUEST: {
+                const request = constructRequestFromCloudFront(
+                    result as CloudFrontRequest,
+                );
 
-            case CloudFrontLambdaResultType.RESPONSE:
+                const response = await forwardToOrigin(request);
+                writeServerResponse(response, outgoingMessage);
+                break;
+            }
+
+            case CloudFrontLambdaResultType.RESPONSE: {
                 const response = constructResponseFromCloudFront(
                     result as CloudFrontResultResponse,
                 );
                 writeServerResponse(response, outgoingMessage);
                 break;
+            }
 
             default:
                 throw new Error(

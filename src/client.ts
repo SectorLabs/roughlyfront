@@ -4,6 +4,15 @@ import { Headers } from "node-fetch-commonjs";
 
 import type { Request } from "./request";
 
+export interface ClientRequest extends Request {
+    id: string;
+    protocolVersion: string;
+    clientIP: string;
+    clientPort: number;
+    trueClientIP: string;
+    forwardedIPs: string[];
+}
+
 const readBody = async (
     incomingMessage: http.IncomingMessage,
 ): Promise<Buffer | null> => {
@@ -43,7 +52,7 @@ const parseHeaders = (incomingMessage: http.IncomingMessage): Headers => {
 
 export const constructClientRequest = async (
     incomingMessage: http.IncomingMessage,
-): Promise<Request> => {
+): Promise<ClientRequest> => {
     const headers = parseHeaders(incomingMessage);
 
     const clientIP = incomingMessage.socket.remoteAddress || "127.0.0.1";
