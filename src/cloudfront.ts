@@ -2,8 +2,12 @@ import type {
     Context,
     CloudFrontRequest,
     CloudFrontRequestEvent,
+    CloudFrontResultResponse,
 } from "aws-lambda";
+import { Headers } from "node-fetch-commonjs";
+
 import type { Request } from "./request";
+import type { Response } from "./response";
 import {
     AWS_REGION,
     AWS_ACCOUNT_ID,
@@ -11,6 +15,11 @@ import {
     AWS_LAMBDA_FUNCTION_VERSION,
     AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
 } from "./constants";
+
+export enum CloudFrontLambdaResultType {
+    REQUEST = "request",
+    RESPONSE = "response",
+}
 
 export type CloudFrontEventType =
     | "origin-request"
@@ -105,4 +114,41 @@ export const constructCloudFrontRequestContext = (
         /* eslint-enable @typescript-eslint/no-explicit-any */
         /* eslint-enable @typescript-eslint/no-empty-function */
     };
+};
+
+export const constructResponseFromCloudFront = (
+    cfResponse: CloudFrontResultResponse,
+): Response => {
+    const headers = new Headers();
+    Object.entries(cfResponse.headers || {}).forEach(([name, values]) => {
+        values.forEach(({ key, value }) => {
+            headers.append(key || name, value);
+        });
+    });
+
+    const bodyEncoding =
+        cfResponse.bodyEncoding === "base64" ? "base64" : undefined;
+    const body = cfResponse.body
+        ? Buffer.from(cfResponse.body, bodyEncoding)
+        : null;
+
+    return {
+        status: Number(cfResponse.status),
+        headers,
+        body,
+    };
+};
+
+export const detectCloudFrontLambdaResult = (
+    result: CloudFrontRequest | CloudFrontResultResponse,
+): CloudFrontLambdaResultType | null => {
+    if ((result as CloudFrontRequest).uri) {
+        return CloudFrontLambdaResultType.REQUEST;
+    }
+
+    if ((result as CloudFrontResultResponse).status) {
+        return CloudFrontLambdaResultType.RESPONSE;
+    }
+
+    return null;
 };

@@ -1,12 +1,17 @@
 import type * as http from "http";
+import type { CloudFrontResultResponse } from "aws-lambda";
 
 import type { Lambda } from "./lambda";
 import { constructClientRequest } from "./client";
+import { writeServerResponse } from "./server";
 import { constructOriginRequest } from "./origin";
 import {
     CloudFrontEventType,
+    CloudFrontLambdaResultType,
     constructCloudFrontRequestEvent,
     constructCloudFrontRequestContext,
+    constructResponseFromCloudFront,
+    detectCloudFrontLambdaResult,
 } from "./cloudfront";
 
 export const createRequestListener =
@@ -26,8 +31,23 @@ export const createRequestListener =
             constructCloudFrontRequestContext(originRequest);
 
         const result = await lambda.invoke(cfRequestEvent, cfRequestContext);
-        console.log(result);
+        const resultType = detectCloudFrontLambdaResult(result);
+        switch (resultType) {
+            case CloudFrontLambdaResultType.REQUEST:
+                outgoingMessage.writeHead(200);
+                outgoingMessage.end("hello world");
+                break;
 
-        outgoingMessage.writeHead(200);
-        outgoingMessage.end("hello world");
+            case CloudFrontLambdaResultType.RESPONSE:
+                const response = constructResponseFromCloudFront(
+                    result as CloudFrontResultResponse,
+                );
+                writeServerResponse(response, outgoingMessage);
+                break;
+
+            default:
+                throw new Error(
+                    `Lambda returned unknown/unhandledable data type: ${result}`,
+                );
+        }
     };

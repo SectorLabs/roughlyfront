@@ -5,10 +5,10 @@ import { Headers } from "node-fetch-commonjs";
 import type { Request } from "./request";
 
 const readBody = async (
-    request: http.IncomingMessage,
+    incomingMessage: http.IncomingMessage,
 ): Promise<Buffer | null> => {
     const buffers = [];
-    for await (const chunk of request) {
+    for await (const chunk of incomingMessage) {
         buffers.push(chunk);
     }
 
@@ -24,9 +24,9 @@ const readBody = async (
     return buffer;
 };
 
-const parseHeaders = (request: http.IncomingMessage): Headers => {
+const parseHeaders = (incomingMessage: http.IncomingMessage): Headers => {
     const headers = new Headers();
-    Object.entries(request.headers).forEach(([name, value]) => {
+    Object.entries(incomingMessage.headers).forEach(([name, value]) => {
         if (typeof value === "string") {
             headers.append(name, value);
         } else if (Array.isArray(value)) {
@@ -42,12 +42,12 @@ const parseHeaders = (request: http.IncomingMessage): Headers => {
 };
 
 export const constructClientRequest = async (
-    request: http.IncomingMessage,
+    incomingMessage: http.IncomingMessage,
 ): Promise<Request> => {
-    const headers = parseHeaders(request);
+    const headers = parseHeaders(incomingMessage);
 
-    const clientIP = request.socket.remoteAddress || "127.0.0.1";
-    const clientPort = request.socket.remotePort || 80;
+    const clientIP = incomingMessage.socket.remoteAddress || "127.0.0.1";
+    const clientPort = incomingMessage.socket.remotePort || 80;
     const forwardedIPs = (headers.get("x-forwarded-for") || "")
         .split(",")
         .filter((ip: string) => !!ip.trim());
@@ -59,15 +59,15 @@ export const constructClientRequest = async (
 
     const host = headers.get("x-forwarded-host") || headers.get("host");
     const protocol = headers.get("x-forwarded-proto") || "http";
-    const url = new URL(request.url || "", `${protocol}://${host}`);
-    const body = await readBody(request);
+    const url = new URL(incomingMessage.url || "", `${protocol}://${host}`);
+    const body = await readBody(incomingMessage);
 
     return {
         id: crypto.randomUUID().replace(/-/g, ""),
-        method: request.method || "GET",
+        method: incomingMessage.method || "GET",
         url,
         headers,
-        protocolVersion: request.httpVersion,
+        protocolVersion: incomingMessage.httpVersion,
         clientIP,
         clientPort,
         trueClientIP,
