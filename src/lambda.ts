@@ -6,16 +6,17 @@ import type {
     CloudFrontResponse,
     Context,
 } from "aws-lambda";
+import { Headers } from "node-fetch-commonjs";
 
 import { createEnvVars } from "./env";
 
-export type FunctionHandler = (
+export type LambdaHandler = (
     event: CloudFrontRequestEvent,
     context: Context,
 ) => Promise<CloudFrontRequest | CloudFrontResponse>;
 
-export class LambdaEdgeFunction {
-    private handler: FunctionHandler | null = null;
+export class Lambda {
+    private handler: LambdaHandler | null = null;
 
     constructor(private filePath: string, private handlerName: string) {
         this.handler = null;
@@ -39,10 +40,24 @@ export class LambdaEdgeFunction {
             filename: this.filePath,
         });
 
+        // We can't just spread `global` like `...global` because not all of
+        // its properties are enumerable. We use getOwnPropertyNames to obtain
+        // a complete list.
+        const inheritedContext = Object.getOwnPropertyNames(global).reduce(
+            (acc, name) => ({
+                ...acc,
+                [name]: Object.getOwnPropertyDescriptor(global, name)?.value,
+            }),
+            {},
+        );
+
         const context = vm.createContext({
-            ...global,
+            ...inheritedContext,
             exports: {},
             require,
+            // TODO: remove this, this isn't available in node.js, the worker
+            // should use ismorphic-fetch or smth
+            Headers,
             process: {
                 ...process,
                 env: {

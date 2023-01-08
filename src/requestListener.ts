@@ -1,15 +1,33 @@
 import type * as http from "http";
 
-import type { LambdaEdgeFunction } from "./function";
+import type { Lambda } from "./lambda";
+import { constructClientRequest } from "./client";
+import { constructOriginRequest } from "./origin";
+import {
+    CloudFrontEventType,
+    constructCloudFrontRequestEvent,
+    constructCloudFrontRequestContext,
+} from "./cloudfront";
 
 export const createRequestListener =
-    (
-        _func: LambdaEdgeFunction, // eslint-disable-line @typescript-eslint/no-unused-vars
-    ) =>
+    (eventType: CloudFrontEventType, lambda: Lambda) =>
     async (
-        _request: http.IncomingMessage,
-        response: http.ServerResponse,
+        incomingMessage: http.IncomingMessage,
+        outgoingMessage: http.ServerResponse,
     ): Promise<void> => {
-        response.writeHead(200);
-        response.end("hello world");
+        const clientRequest = await constructClientRequest(incomingMessage);
+        const originRequest = constructOriginRequest(clientRequest);
+
+        const cfRequestEvent = constructCloudFrontRequestEvent(
+            eventType,
+            originRequest,
+        );
+        const cfRequestContext =
+            constructCloudFrontRequestContext(originRequest);
+
+        const result = await lambda.invoke(cfRequestEvent, cfRequestContext);
+        console.log(result);
+
+        outgoingMessage.writeHead(200);
+        outgoingMessage.end("hello world");
     };
