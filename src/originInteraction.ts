@@ -16,7 +16,7 @@ const constructRequestURL = (originRequest: CloudFrontRequest): string => {
     const host = `${originRequest.origin.custom.domainName}:${originRequest.origin.custom.port}`;
     const protocol = originRequest.origin.custom.protocol;
 
-    let uri = originRequest.origin.custom.path;
+    let uri = (originRequest.origin.custom.path || "") + originRequest.uri;
     if (originRequest.querystring) {
         uri += `?${originRequest.querystring}`;
     }
