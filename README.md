@@ -1,9 +1,9 @@
 # Roughlyfront
 
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/SectorLabs/roughlyfront/tree/master.svg?style=svg&circle-token=c60be6386f3065618b8df23e40962720c402e708)](https://dl.circleci.com/status-badge/redirect/gh/SectorLabs/roughlyfront/tree/master)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-
-roughlyfront is a small and mostly correct emulator for AWS Lambda@Edge. It allows you to run, test and develop your AWS Lambda@Edge functions locally.
+Roughlyfront is a small and mostly correct emulator for AWS Lambda@Edge. It allows you to run, test and develop your AWS Lambda@Edge functions locally.
 
 ## What works
 * Viewer request events
