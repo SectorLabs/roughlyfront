@@ -21,7 +21,13 @@ export const generateErrorResponse = (
 ): CloudFrontResultResponse => ({
     status: "500",
     statusDescription: "Server error",
-    headers: {},
+    headers: {
+        "content-type": [
+            {
+                value: "text/html",
+            },
+        ],
+    },
     body: `<h1>AWS Lambda@Edge Error</h1><pre><code>${formatError(
         error,
     )}</code></pre>`,
