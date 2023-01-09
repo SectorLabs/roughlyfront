@@ -34,8 +34,10 @@
         "format": "npm run format:code && npm run format:packagejson",
         "format:code": "prettier --write './**/*.{js,ts,json}' --write './.eslintrc'",
         "format:packagejson": "sort-package-json ./package.json",
+        "format:verify": "prettier --check './**/*.{js,ts,json}' --check './.eslintrc'",
         "lint": "eslint --max-warnings=0 --ext .js --ext .ts --color .",
-        "lint:fix": "npm run lint -- --fix"
+        "lint:fix": "npm run lint -- --fix",
+        "verify": "npm run format:verify && npm run lint"
     },
     "dependencies": {
         "commander": "^9.4.1",

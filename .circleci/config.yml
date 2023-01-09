@@ -1,0 +1,61 @@
+version: 2.1
+
+executors:
+  node_16:
+    docker:
+      - image: cimg/node:16.17.1
+
+jobs:
+  release:
+    executor: node_16
+    steps:
+      - checkout
+      - run:
+          name: Install packages
+          command: npm ci
+
+      - run:
+          name: Verify
+          command: npm run verify
+
+      - run:
+          name: Build
+          command: npm run build
+
+      - run:
+          name: Publish to registry
+          working_directory: dist
+          command: |
+            echo "//nexus.sector.sh/repository/yarn-empg/:_authToken=NpmToken.${NPM_REGISTRY_TOKEN}" >> .npmrc
+            npm version --allow-same-version --no-git-tag-version ${CIRCLE_TAG:1}
+            npm publish
+
+  verify:
+    executor: node_16
+    steps:
+      - checkout
+      - run:
+          name: Install packages
+          command: npm ci
+
+      - run:
+          name: Run tests
+          command: npm run verify
+
+
+workflows:
+    version: 2
+    build:
+        jobs:
+          - verify:
+              filters:
+                tags:
+                  ignore: /^v.*/
+
+          - release:
+              context: npm-registry
+              filters:
+                tags:
+                  only: /^v.*/
+                branches:
+                  ignore: /.*/
