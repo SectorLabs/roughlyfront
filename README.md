@@ -37,8 +37,12 @@ By default, Roughlyfront will listen on port `8787`.
 ```toml
 [[lambdas]]
 name = "myedgelambda"
-file = "/path/to/index.js"
+file = "./dist/index.js"
 handler = "nameofhandlerfunction"
+build = {
+    command = "webpack"
+    watch = ["./src"]
+}
 
 [[distributions]]
 id = "default"

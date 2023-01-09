@@ -1,6 +1,7 @@
 import * as vm from "vm";
 import * as fs from "fs";
 import * as path from "path";
+import * as child_process from "child_process";
 import type {
     CloudFrontRequest,
     CloudFrontRequestEvent,
@@ -8,6 +9,7 @@ import type {
     Context,
 } from "aws-lambda";
 import consola from "consola";
+import chokidar from "chokidar";
 import { Headers } from "node-fetch-commonjs";
 
 import { createEnvVars } from "./env";
@@ -23,37 +25,72 @@ export class Lambda {
     public name: string;
     public filePath: string;
     public handlerName: string;
+    public buildCommand: string | undefined;
+    public buildWatchPaths: string[] | undefined;
 
     private handler: LambdaHandler | null = null;
 
-    constructor(name: string, filePath: string, handlerName: string) {
+    constructor(
+        name: string,
+        filePath: string,
+        handlerName: string,
+        buildCommand?: string | undefined,
+        buildWatchPaths?: string[] | undefined,
+    ) {
         this.name = name;
         this.filePath = filePath;
         this.handlerName = handlerName;
         this.handler = null;
+        this.buildCommand = buildCommand;
+        this.buildWatchPaths = buildWatchPaths;
     }
 
     static initialize(config: LambdaConfig, directory: string): Lambda {
         const filePath = path.resolve(
             path.isAbsolute(config.file)
                 ? config.file
-                : path.join(directory, config.file),
+                : path.resolve(path.join(directory, config.file)),
         );
 
-        const lambda = new Lambda(config.name, filePath, config.handler);
+        const buildWatchPaths = config.build?.watch
+            ? config.build?.watch.map((watchPath) =>
+                  path.isAbsolute(watchPath)
+                      ? watchPath
+                      : path.resolve(path.join(directory, watchPath)),
+              )
+            : config.build?.watch;
+
+        const lambda = new Lambda(
+            config.name,
+            filePath,
+            config.handler,
+            config.build?.command,
+            buildWatchPaths,
+        );
+        lambda.build();
+        lambda.evaluate();
         lambda.enableHotReloading();
         return lambda;
     }
 
     enableHotReloading() {
-        this.evaluate();
+        const watchPaths = [this.filePath];
+        if (this.buildWatchPaths) {
+            watchPaths.push(...this.buildWatchPaths);
+        }
 
-        consola.success(`Watching Lambda ${this.name} at ${this.filePath}`);
-
-        fs.watch(this.filePath, () => {
-            this.evaluate();
-            consola.info(`Lambda ${this.name} changed, reloaded it`);
-        });
+        chokidar
+            .watch(watchPaths, {
+                ignoreInitial: true,
+                awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 20 },
+            })
+            .on("all", (_event: string, affectedPath: string) => {
+                if (affectedPath === this.filePath) {
+                    this.evaluate();
+                } else {
+                    this.build();
+                }
+            });
     }
 
     async invoke(
@@ -66,6 +103,19 @@ export class Lambda {
 
         const result = await this.handler!(event, context);
         return new LambdaResult(result);
+    }
+
+    build() {
+        if (!this.buildCommand) {
+            return;
+        }
+
+        // Wrap in try-catch because we don't actually want to die
+        // just because the build failed. The user will simply
+        // fix the error and another rebuild will occur.
+        try {
+            child_process.execSync(this.buildCommand, { stdio: "inherit" });
+        } catch (error) {}
     }
 
     evaluate() {
@@ -110,6 +160,8 @@ export class Lambda {
                 `${this.filePath} does not export a function named ${this.handlerName}`,
             );
         }
+
+        consola.success(`Evaluated Lambda function '${this.name}'`);
 
         this.handler = handler;
     }

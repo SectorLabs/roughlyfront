@@ -4,10 +4,16 @@ import toml from "toml";
 
 import type { CloudFrontEventType } from "./types";
 
+export interface LambdaBuildConfig {
+    command: string;
+    watch?: string[];
+}
+
 export interface LambdaConfig {
     name: string;
     file: string;
     handler: string;
+    build?: LambdaBuildConfig;
 }
 
 export interface OriginConfig {
