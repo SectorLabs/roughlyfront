@@ -1,5 +1,6 @@
 import * as vm from "vm";
 import * as fs from "fs";
+import * as path from "path";
 import type {
     CloudFrontRequest,
     CloudFrontRequestEvent,
@@ -10,6 +11,7 @@ import consola from "consola";
 import { Headers } from "node-fetch-commonjs";
 
 import { createEnvVars } from "./env";
+import type { LambdaConfig } from "./config";
 import { LambdaResult } from "./lambdaResult";
 
 export type LambdaHandler = (
@@ -19,23 +21,26 @@ export type LambdaHandler = (
 
 export class Lambda {
     public name: string;
+    public filePath: string;
+    public handlerName: string;
+
     private handler: LambdaHandler | null = null;
 
-    constructor(
-        name: string,
-        private filePath: string,
-        private handlerName: string,
-    ) {
+    constructor(name: string, filePath: string, handlerName: string) {
         this.name = name;
+        this.filePath = filePath;
+        this.handlerName = handlerName;
         this.handler = null;
     }
 
-    static initialize(
-        name: string,
-        filePath: string,
-        handlerName: string,
-    ): Lambda {
-        const lambda = new Lambda(name, filePath, handlerName);
+    static initialize(config: LambdaConfig, directory: string): Lambda {
+        const filePath = path.resolve(
+            path.isAbsolute(config.file)
+                ? config.file
+                : path.join(directory, config.file),
+        );
+
+        const lambda = new Lambda(config.name, filePath, config.handler);
         lambda.enableHotReloading();
         return lambda;
     }

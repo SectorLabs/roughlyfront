@@ -60,11 +60,7 @@ const handleRequestEvent = async (
 
 export const createRequestListener = (config: Config) => {
     const lambdas = config.lambdas.map((lambdaConfig) =>
-        Lambda.initialize(
-            lambdaConfig.name,
-            lambdaConfig.file,
-            lambdaConfig.handler,
-        ),
+        Lambda.initialize(lambdaConfig, config.directory),
     );
 
     return async (

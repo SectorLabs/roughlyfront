@@ -52,6 +52,9 @@ origin = "default"
 lambdas = { origin-request = "myedgelambda" }
 ```
 
+#### Lambda files
+The path to your Lambda function's entrypoint file is always relative to the location of the config file. _Not_ to the current working directory.
+
 #### Multiple distributions
 Roughlyfront allows you to configure multiple distributions. It matches requests against the distribution by inspecting the value of `Host` header. Set the distribution's `domains` property to match the `Host` header you pass.
 
