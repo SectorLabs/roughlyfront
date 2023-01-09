@@ -1,6 +1,7 @@
 import * as crypto from "crypto";
 import type * as http from "http";
 import type { CloudFrontRequest } from "aws-lambda";
+import consola from "consola";
 
 import { Lambda } from "./lambda";
 import type { CloudFrontEventType } from "./types";
@@ -99,7 +100,12 @@ export const createRequestListener = (config: Config) => {
             viewerRequest,
         );
         if (viewerResult.isResponse()) {
-            writeOriginResponse(viewerResult.asResponse(), outgoingMessage, {
+            const generatedResponse = viewerResult.asResponse();
+            consola.info(
+                `${incomingMessage.method} ${host}${path} ${generatedResponse.status} [generated]`,
+            );
+
+            writeOriginResponse(generatedResponse, outgoingMessage, {
                 id: context.id,
                 host,
                 generated: true,
@@ -117,7 +123,12 @@ export const createRequestListener = (config: Config) => {
             ),
         );
         if (originResult.isResponse()) {
-            writeOriginResponse(originResult.asResponse(), outgoingMessage, {
+            const generatedResponse = originResult.asResponse();
+            consola.info(
+                `${incomingMessage.method} ${host}${path} ${generatedResponse.status} [generated]`,
+            );
+
+            writeOriginResponse(generatedResponse, outgoingMessage, {
                 id: context.id,
                 host,
                 generated: true,
@@ -133,5 +144,9 @@ export const createRequestListener = (config: Config) => {
             host,
             generated: false,
         });
+
+        consola.info(
+            `${incomingMessage.method} ${host}${path} ${originResponse.status} [origin]`,
+        );
     };
 };
