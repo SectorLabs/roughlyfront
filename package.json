@@ -27,6 +27,10 @@
     "bin": {
         "roughlyfront": "./cli.js"
     },
+    "files": [
+        "dist/*",
+        "cli.js"
+    ],
     "scripts": {
         "build": "tsc",
         "build:dev": "tsc --watch",

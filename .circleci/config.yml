@@ -24,7 +24,6 @@ jobs:
 
       - run:
           name: Publish to registry
-          working_directory: dist
           command: |
             echo "//nexus.sector.sh/repository/yarn-empg/:_authToken=NpmToken.${NPM_REGISTRY_TOKEN}" >> .npmrc
             npm version --allow-same-version --no-git-tag-version ${CIRCLE_TAG:1}
