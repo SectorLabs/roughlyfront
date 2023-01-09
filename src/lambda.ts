@@ -6,9 +6,11 @@ import type {
     CloudFrontResponse,
     Context,
 } from "aws-lambda";
+import consola from "consola";
 import { Headers } from "node-fetch-commonjs";
 
 import { createEnvVars } from "./env";
+import { LambdaResult } from "./lambdaResult";
 
 export type LambdaHandler = (
     event: CloudFrontRequestEvent,
@@ -16,21 +18,49 @@ export type LambdaHandler = (
 ) => Promise<CloudFrontRequest | CloudFrontResponse>;
 
 export class Lambda {
+    public name: string;
     private handler: LambdaHandler | null = null;
 
-    constructor(private filePath: string, private handlerName: string) {
+    constructor(
+        name: string,
+        private filePath: string,
+        private handlerName: string,
+    ) {
+        this.name = name;
         this.handler = null;
+    }
+
+    static initialize(
+        name: string,
+        filePath: string,
+        handlerName: string,
+    ): Lambda {
+        const lambda = new Lambda(name, filePath, handlerName);
+        lambda.enableHotReloading();
+        return lambda;
+    }
+
+    enableHotReloading() {
+        this.evaluate();
+
+        consola.success(`Watching Lambda ${this.name} at ${this.filePath}`);
+
+        fs.watch(this.filePath, () => {
+            this.evaluate();
+            consola.info(`Lambda ${this.name} changed, reloaded it`);
+        });
     }
 
     async invoke(
         event: CloudFrontRequestEvent,
         context: Context,
-    ): Promise<CloudFrontRequest | CloudFrontResponse> {
+    ): Promise<LambdaResult> {
         if (!this.handler) {
             this.evaluate();
         }
 
-        return this.handler!(event, context);
+        const result = await this.handler!(event, context);
+        return new LambdaResult(result);
     }
 
     evaluate() {

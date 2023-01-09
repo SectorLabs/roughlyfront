@@ -1,59 +1,141 @@
+import * as crypto from "crypto";
 import type * as http from "http";
-import type { CloudFrontRequest, CloudFrontResultResponse } from "aws-lambda";
+import type { CloudFrontRequest } from "aws-lambda";
 
-import type { Lambda } from "./lambda";
-import { constructClientRequest } from "./client";
-import { writeServerResponse } from "./server";
-import { forwardToOrigin } from "./origin";
+import { Lambda } from "./lambda";
+import type { CloudFrontEventType } from "./types";
+import type {
+    Config,
+    DistributionConfig,
+    BehaviorConfig,
+    OriginConfig,
+} from "./config";
+import { writeOriginResponse } from "./originResponse";
+import { makeOriginRequest } from "./originInteraction";
 import {
-    CloudFrontEventType,
-    CloudFrontLambdaResultType,
-    constructRequestFromCloudFront,
-    constructCloudFrontRequestEvent,
-    constructCloudFrontRequestContext,
-    constructResponseFromCloudFront,
-    detectCloudFrontLambdaResult,
-} from "./cloudfront";
+    selectDistributionByHost,
+    selectBehaviorByPath,
+    selectOriginByName,
+} from "./distributions";
+import { constructEventContext } from "./eventContext";
+import { constructViewerRequest } from "./viewerRequest";
+import { constructOriginRequest } from "./originRequest";
+import { constructRequestEvent } from "./requestEvent";
+import { LambdaResult } from "./lambdaResult";
 
-export const createRequestListener =
-    (eventType: CloudFrontEventType, lambda: Lambda) =>
-    async (
+interface RequestListenerContext {
+    id: string;
+    lambdas: Lambda[];
+    distribution: DistributionConfig;
+    behavior: BehaviorConfig;
+    origin: OriginConfig;
+}
+
+const handleRequestEvent = async (
+    context: RequestListenerContext,
+    eventType: CloudFrontEventType,
+    request: CloudFrontRequest,
+): Promise<LambdaResult> => {
+    const lambdaName = context.behavior.lambdas?.[eventType];
+    if (lambdaName) {
+        const lambda = context.lambdas.find(
+            (lambda) => lambda.name === lambdaName,
+        );
+        if (!lambda) {
+            throw new Error(`Lambda '${lambdaName}' was not initialized`);
+        }
+
+        const requestEvent = constructRequestEvent(
+            context.id,
+            eventType,
+            context.distribution,
+            request,
+        );
+        const eventContext = constructEventContext(context.id);
+        return lambda.invoke(requestEvent, eventContext);
+    }
+
+    return new LambdaResult(request);
+};
+
+export const createRequestListener = (config: Config) => {
+    const lambdas = config.lambdas.map((lambdaConfig) =>
+        Lambda.initialize(
+            lambdaConfig.name,
+            lambdaConfig.file,
+            lambdaConfig.handler,
+        ),
+    );
+
+    return async (
         incomingMessage: http.IncomingMessage,
         outgoingMessage: http.ServerResponse,
     ): Promise<void> => {
-        const clientRequest = await constructClientRequest(incomingMessage);
-
-        const cfRequestEvent = constructCloudFrontRequestEvent(
-            eventType,
-            clientRequest,
-        );
-        const cfRequestContext =
-            constructCloudFrontRequestContext(clientRequest);
-
-        const result = await lambda.invoke(cfRequestEvent, cfRequestContext);
-        const resultType = detectCloudFrontLambdaResult(result);
-        switch (resultType) {
-            case CloudFrontLambdaResultType.REQUEST: {
-                const request = constructRequestFromCloudFront(
-                    result as CloudFrontRequest,
-                );
-
-                const response = await forwardToOrigin(request);
-                writeServerResponse(response, outgoingMessage);
-                break;
-            }
-
-            case CloudFrontLambdaResultType.RESPONSE: {
-                const response = constructResponseFromCloudFront(
-                    result as CloudFrontResultResponse,
-                );
-                writeServerResponse(response, outgoingMessage);
-                break;
-            }
-
-            default:
-                throw new Error(
-                    `Lambda returned unknown/unhandledable data type: ${result}`,
-                );
+        const host = incomingMessage.headers["host"];
+        if (!host) {
+            throw new Error(
+                "Request does not have a 'Host' header, without it we cannot select the distribution",
+            );
         }
+
+        const path = incomingMessage.url?.split("?")[0] || "/";
+
+        const distribution = selectDistributionByHost(
+            config.distributions,
+            host,
+        );
+
+        const behavior = selectBehaviorByPath(distribution, path);
+
+        const context: RequestListenerContext = {
+            id: crypto.randomUUID().replace(/-/g, ""),
+            lambdas,
+            distribution,
+            behavior,
+            origin: selectOriginByName(distribution, behavior.origin),
+        };
+
+        const viewerRequest = await constructViewerRequest(incomingMessage);
+
+        const viewerResult = await handleRequestEvent(
+            context,
+            "viewer-request",
+            viewerRequest,
+        );
+        if (viewerResult.isResponse()) {
+            writeOriginResponse(viewerResult.asResponse(), outgoingMessage, {
+                id: context.id,
+                host,
+                generated: true,
+            });
+            return;
+        }
+
+        const originResult = await handleRequestEvent(
+            context,
+            "origin-request",
+            constructOriginRequest(
+                context.id,
+                viewerResult.asRequest(),
+                context.origin,
+            ),
+        );
+        if (originResult.isResponse()) {
+            writeOriginResponse(originResult.asResponse(), outgoingMessage, {
+                id: context.id,
+                host,
+                generated: true,
+            });
+            return;
+        }
+
+        const originResponse = await makeOriginRequest(
+            originResult.asRequest(),
+        );
+        writeOriginResponse(originResponse, outgoingMessage, {
+            id: context.id,
+            host,
+            generated: false,
+        });
     };
+};

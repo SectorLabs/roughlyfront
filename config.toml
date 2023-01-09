@@ -1,0 +1,18 @@
+[[lambdas]]
+name = "humbucker"
+file = "/Users/swen/Code/humbucker/workers/aws-lambda-worker/dist/worker.js"
+handler = "handler"
+
+[[distributions]]
+id = "default"
+domains = ["humbucker.com"]
+[[distributions.origins]]
+name = "default"
+protocol = "http"
+domain = "localhost"
+port = "3002"
+path = ""
+[[distributions.behaviors]]
+pattern = "/*"
+origin = "default"
+lambdas = { origin-request = "humbucker" }

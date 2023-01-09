@@ -2,18 +2,43 @@
 
 roughlyfront is a small and mostly correct emulator for AWS Lambda@Edge. It allows you to run, test and develop your AWS Lambda@Edge functions locally.
 
+## What works
+* Viewer request events
+* Origin request events
+* Generated responses
+
+## What doesn't work
+* Viewer response events
+* Origin response events
+* S3 origins
+* Assumes all behaviors forward all headers and query string
+* Origin timeout
+* Origin keep alive
+* Always adds mocked `CloudFront-Viewer` headers
+* No caching whatsoever, all requests pass to the origin
+
 ## Usage
-```
-Usage: roughlyfront [options]
+Roughlyfront supports emulating multiple CloudFront distributions and Lambda@Edge functions. You configure the available distributions and lambda functions through a Toml configuration file:
 
-A roughly accurate emulator for AWS Lambda@Edge.
+```toml
+[[lambdas]]
+name = "myedgelambda"
+file = "/path/to/index.js"
+handler = "nameofhandlerfunction"
 
-Options:
-  -e, --event-type               event to emulate (choices: "origin-request")
-  -p, --port <port>              port to listen on (default: 8787)
-  -h, --host <host>              host to listen on (default: "0.0.0.0")
-  -f, --lambda-file <js script>  handler script to invoke (default: "index.js")
-  -n, --lambda-handler <name>    handler function to invoke (default:
-                                 "handler")
-  --help                         display help for command
+[[distributions]]
+id = "default"
+domains = ["mypublicdomain.com"]
+[[distributions.origins]]
+name = "default"
+protocol = "http"
+domain = "localhost"
+port = "3000"
+path = ""
+[[distributions.behaviors]]
+pattern = "/*"
+origin = "default"
+lambdas = { origin-request = "myedgelambda" }
 ```
+
+The distribution is selected based on the `Host` header. Make sure that the distribution's `domains` property matches the `Host` header you pass.

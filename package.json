@@ -41,7 +41,9 @@
         "commander": "^9.4.1",
         "consola": "^2.15.3",
         "fb-watchman": "^2.0.2",
-        "node-fetch-commonjs": "^3.2.4"
+        "node-fetch-commonjs": "^3.2.4",
+        "outmatch": "^0.7.0",
+        "toml": "^3.0.0"
     },
     "devDependencies": {
         "@tsconfig/node16-strictest": "^1.0.3",
