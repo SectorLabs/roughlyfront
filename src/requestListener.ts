@@ -1,6 +1,6 @@
 import * as crypto from "crypto";
 import type * as http from "http";
-import type { CloudFrontRequest } from "aws-lambda";
+import type { CloudFrontRequest, CloudFrontResultResponse } from "aws-lambda";
 import consola from "consola";
 
 import { Lambda } from "./lambda";
@@ -23,6 +23,7 @@ import { constructViewerRequest } from "./viewerRequest";
 import { constructOriginRequest } from "./originRequest";
 import { constructRequestEvent } from "./requestEvent";
 import { LambdaResult } from "./lambdaResult";
+import { generateErrorResponse } from "./error";
 
 interface RequestListenerContext {
     id: string;
@@ -31,6 +32,15 @@ interface RequestListenerContext {
     behavior: BehaviorConfig;
     origin: OriginConfig;
 }
+
+const logRequest = (
+    incomingMessage: http.IncomingMessage,
+    response: CloudFrontResultResponse,
+    tag: string,
+) => {
+    const message = `${incomingMessage.method} ${incomingMessage.url} ${response.status} [${tag}]`;
+    consola.info(message);
+};
 
 const handleRequestEvent = async (
     context: RequestListenerContext,
@@ -53,7 +63,13 @@ const handleRequestEvent = async (
             request,
         );
         const eventContext = constructEventContext(context.id);
-        return lambda.invoke(requestEvent, eventContext);
+
+        try {
+            return await lambda.invoke(requestEvent, eventContext);
+        } catch (error) {
+            consola.error(error);
+            return new LambdaResult(generateErrorResponse(error));
+        }
     }
 
     return new LambdaResult(request);
@@ -101,9 +117,7 @@ export const createRequestListener = (config: Config) => {
         );
         if (viewerResult.isResponse()) {
             const generatedResponse = viewerResult.asResponse();
-            consola.info(
-                `${incomingMessage.method} ${host}${path} ${generatedResponse.status} [generated]`,
-            );
+            logRequest(incomingMessage, generatedResponse, "generated");
 
             writeOriginResponse(generatedResponse, outgoingMessage, {
                 id: context.id,
@@ -124,9 +138,7 @@ export const createRequestListener = (config: Config) => {
         );
         if (originResult.isResponse()) {
             const generatedResponse = originResult.asResponse();
-            consola.info(
-                `${incomingMessage.method} ${host}${path} ${generatedResponse.status} [generated]`,
-            );
+            logRequest(incomingMessage, generatedResponse, "generated");
 
             writeOriginResponse(generatedResponse, outgoingMessage, {
                 id: context.id,
@@ -139,14 +151,13 @@ export const createRequestListener = (config: Config) => {
         const originResponse = await makeOriginRequest(
             originResult.asRequest(),
         );
+
+        logRequest(incomingMessage, originResponse, "origin");
+
         writeOriginResponse(originResponse, outgoingMessage, {
             id: context.id,
             host,
             generated: false,
         });
-
-        consola.info(
-            `${incomingMessage.method} ${host}${path} ${originResponse.status} [origin]`,
-        );
     };
 };
