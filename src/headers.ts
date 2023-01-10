@@ -48,7 +48,7 @@ export const asFetchHeaders = (headers: Headers): Record<string, string> =>
     Array.from(headers.entries()).reduce(
         (acc, [name, value]) => ({
             ...acc,
-            [name]: [{ key: name, value }],
+            [name]: value,
         }),
         {},
     );
