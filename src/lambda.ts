@@ -125,19 +125,7 @@ export class Lambda {
             filename: this.filePath,
         });
 
-        // Inherit the context from this process. Most properties of `global`
-        // are not iterable, hence we use `getOwnPropertyNames` instead of
-        // just spreading the object.
-        const inheritedContext = Object.getOwnPropertyNames(global).reduce(
-            (acc, name) => ({
-                ...acc,
-                [name]: Object.getOwnPropertyDescriptor(global, name)?.value,
-            }),
-            {},
-        );
-
         const context = vm.createContext({
-            ...inheritedContext,
             process: {
                 ...process,
                 env: {
@@ -145,6 +133,18 @@ export class Lambda {
                     ...createEnvVars(this.filePath, this.handlerName),
                 },
             },
+        });
+
+        // Inherit the context from this process. Most properties of `global`
+        // are not iterable, hence we use `getOwnPropertyNames` instead of
+        // just spreading the object.
+        Object.getOwnPropertyNames(global).forEach((name) => {
+            const descriptor = Object.getOwnPropertyDescriptor(global, name);
+            if (!descriptor) {
+                return;
+            }
+
+            Object.defineProperty(context, name, descriptor);
         });
 
         // Create circular reference that is expected. You get really
