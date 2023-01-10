@@ -1,6 +1,7 @@
 import * as vm from "vm";
 import * as fs from "fs";
 import * as path from "path";
+import { Module } from "module";
 import * as child_process from "child_process";
 import type {
     CloudFrontRequest,
@@ -120,13 +121,13 @@ export class Lambda {
     evaluate() {
         const src = fs.readFileSync(this.filePath, "utf8");
 
-        const script = new vm.Script(src, {
+        const script = new vm.Script(Module.wrap(src), {
             filename: this.filePath,
         });
 
-        // We can't just spread `global` like `...global` because not all of
-        // its properties are enumerable. We use getOwnPropertyNames to obtain
-        // a complete list.
+        // Inherit the context from this process. Most properties of `global`
+        // are not iterable, hence we use `getOwnPropertyNames` instead of
+        // just spreading the object.
         const inheritedContext = Object.getOwnPropertyNames(global).reduce(
             (acc, name) => ({
                 ...acc,
@@ -137,8 +138,6 @@ export class Lambda {
 
         const context = vm.createContext({
             ...inheritedContext,
-            exports: {},
-            require,
             process: {
                 ...process,
                 env: {
@@ -148,9 +147,21 @@ export class Lambda {
             },
         });
 
-        script.runInNewContext(context);
+        // Create circular reference that is expected. You get really
+        // strange issues if this circular reference doesn't exists.
+        context["global"] = context;
 
-        const handler = context["exports"][this.handlerName];
+        const scriptExports: Record<string, unknown> = {};
+
+        script.runInNewContext(context)(
+            scriptExports,
+            Module.createRequire(this.filePath),
+            module,
+            this.filePath,
+            path.dirname(this.filePath),
+        );
+
+        const handler = scriptExports[this.handlerName];
         if (!handler) {
             throw new Error(
                 `${this.filePath} does not export a function named ${this.handlerName}`,
@@ -159,6 +170,6 @@ export class Lambda {
 
         consola.success(`Evaluated Lambda function '${this.name}'`);
 
-        this.handler = handler;
+        this.handler = handler as LambdaHandler;
     }
 }
