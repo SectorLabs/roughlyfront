@@ -10,7 +10,6 @@ import type {
 } from "aws-lambda";
 import consola from "consola";
 import chokidar from "chokidar";
-import { Headers } from "node-fetch-commonjs";
 
 import { createEnvVars } from "./env";
 import type { LambdaConfig } from "./config";
@@ -140,9 +139,6 @@ export class Lambda {
             ...inheritedContext,
             exports: {},
             require,
-            // TODO: remove this, this isn't available in node.js, the worker
-            // should use ismorphic-fetch or smth
-            Headers,
             process: {
                 ...process,
                 env: {
