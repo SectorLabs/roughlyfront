@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
+import * as fs from "fs";
 import * as http from "http";
+import * as https from "https";
 import consola from "consola";
 import { program, Option } from "commander";
 
@@ -27,6 +29,13 @@ export const main = async (args: string[]): Promise<void> => {
             new Option("-h, --host <host>", "host to listen on")
                 .default("0.0.0.0")
                 .makeOptionMandatory(),
+        )
+        .addOption(new Option("--https-key <file>", "path to a SSL key to use"))
+        .addOption(
+            new Option(
+                "--https-cert <file>",
+                "path to a SSL certificate to use",
+            ),
         );
 
     await program.parse(args);
@@ -34,7 +43,23 @@ export const main = async (args: string[]): Promise<void> => {
     const config = await parseConfig(options["config"]);
 
     const requestListener = createRequestListener(config);
-    const server = http.createServer(requestListener);
+
+    let server = null;
+    if (options["httpsKey"] && options["httpsCert"]) {
+        server = https.createServer(
+            {
+                key: fs.readFileSync(options["httpsKey"]),
+                cert: fs.readFileSync(options["httpsCert"]),
+            },
+            requestListener,
+        );
+
+        consola.success(
+            `Enabled HTTPS with ${options["httpsCert"]} as the certificate`,
+        );
+    } else {
+        server = http.createServer(requestListener);
+    }
 
     server.listen(options["port"], options["host"], () => {
         consola.success(`Listening on ${options["host"]}:${options["port"]}`);
