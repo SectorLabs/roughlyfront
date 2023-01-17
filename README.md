@@ -10,6 +10,11 @@ Roughlyfront is a small and mostly correct emulator for AWS Lambda@Edge. It allo
 * Origin request events
 * Generated responses
 * Hot reloading lambdas
+* HTTPS
+* Mocked `CloudFront-Viewer-*` headers
+* Mocked `x-cache` response headers
+* Mocked `x-amz-*` response headers
+* Mocked `via` header
 
 ## What doesn't work
 * Viewer response events
