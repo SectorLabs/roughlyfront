@@ -1,6 +1,7 @@
 import type * as http from "http";
 import type { CloudFrontResultResponse } from "aws-lambda";
-import { Headers } from "node-fetch-commonjs";
+
+import { parseCloudFrontHeaders } from "./headers";
 
 interface Options {
     id: string;
@@ -15,13 +16,16 @@ const writeHeaders = (
 ): void => {
     // Construct a `Headers` object first to make sure that duplicate
     // headers are handled properly and concatenated into a single header.
-    const headers = new Headers();
-    Object.entries(originResponse.headers || {}).forEach(([name, values]) => {
-        values.forEach(({ key, value }) => {
-            headers.append(key || name, value);
-        });
-    });
+    const headers = parseCloudFrontHeaders(originResponse.headers);
 
+    // Delete these headers as we decode and re-encode the body
+    // so by forwarding these back to the client we might be lying.
+    // Node.js will take care of re-encoding the content and adding
+    // the appropiate headers.
+    headers.delete("content-encoding");
+    headers.delete("transfer-encoding");
+
+    // Simulate CloudFront headers
     headers.set("x-amz-cf-id", options.id);
     headers.set("x-amz-cf-pop", "ROUGHLYFRONT");
     headers.set(
