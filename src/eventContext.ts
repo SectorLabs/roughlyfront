@@ -3,20 +3,22 @@ import type { Context } from "aws-lambda";
 import {
     AWS_REGION,
     AWS_ACCOUNT_ID,
-    AWS_LAMBDA_FUNCTION_NAME,
     AWS_LAMBDA_FUNCTION_VERSION,
     AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
 } from "./constants";
 
-export const constructEventContext = (id: string): Context => ({
+export const constructEventContext = (
+    functionName: string,
+    requestID: string,
+): Context => ({
     callbackWaitsForEmptyEventLoop: false,
-    functionName: AWS_LAMBDA_FUNCTION_NAME.toString(),
+    functionName: functionName,
     functionVersion: AWS_LAMBDA_FUNCTION_VERSION.toString(),
-    invokedFunctionArn: `arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:aws:function:${AWS_LAMBDA_FUNCTION_NAME}`,
+    invokedFunctionArn: `arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:aws:function:${functionName}`,
     memoryLimitInMB: AWS_LAMBDA_FUNCTION_MEMORY_SIZE.toString(),
-    awsRequestId: id,
-    logGroupName: AWS_LAMBDA_FUNCTION_NAME.toString(),
-    logStreamName: AWS_LAMBDA_FUNCTION_NAME.toString(),
+    awsRequestId: requestID,
+    logGroupName: functionName,
+    logStreamName: functionName,
 
     // TODO: maybe record the start time and simulate this?
     getRemainingTimeInMillis: () => 5000,

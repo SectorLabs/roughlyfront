@@ -62,7 +62,7 @@ const handleRequestEvent = async (
             context.distribution,
             request,
         );
-        const eventContext = constructEventContext(context.id);
+        const eventContext = constructEventContext(lambda.name, context.id);
 
         try {
             return await lambda.invoke(requestEvent, eventContext);
