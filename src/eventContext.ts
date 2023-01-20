@@ -15,8 +15,8 @@ export const constructEventContext = (id: string): Context => ({
     invokedFunctionArn: `arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:aws:function:${AWS_LAMBDA_FUNCTION_NAME}`,
     memoryLimitInMB: AWS_LAMBDA_FUNCTION_MEMORY_SIZE.toString(),
     awsRequestId: id,
-    logGroupName: AWS_LAMBDA_FUNCTION_VERSION.toString(),
-    logStreamName: AWS_LAMBDA_FUNCTION_VERSION.toString(),
+    logGroupName: AWS_LAMBDA_FUNCTION_NAME.toString(),
+    logStreamName: AWS_LAMBDA_FUNCTION_NAME.toString(),
 
     // TODO: maybe record the start time and simulate this?
     getRemainingTimeInMillis: () => 5000,
