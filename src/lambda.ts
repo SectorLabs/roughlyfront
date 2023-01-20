@@ -130,7 +130,11 @@ export class Lambda {
                 ...process,
                 env: {
                     ...process.env,
-                    ...createEnvVars(this.filePath, this.handlerName),
+                    ...createEnvVars(
+                        this.filePath,
+                        this.name,
+                        this.handlerName,
+                    ),
                 },
             },
         });
