@@ -36,11 +36,24 @@ export const main = async (args: string[]): Promise<void> => {
                 "--https-cert <file>",
                 "path to a SSL certificate to use",
             ),
+        )
+        .addOption(
+            new Option(
+                "-b, --build",
+                "build lambda functions using the configured build command",
+            ),
         );
 
     await program.parse(args);
     const options = program.opts();
-    const config = await parseConfig(options["config"]);
+    const config = await parseConfig({
+        config: options["config"],
+        port: options["port"],
+        host: options["host"],
+        httpsKey: options["httpsKey"],
+        httpsCert: options["httpsCert"],
+        build: options["build"],
+    });
 
     const requestListener = createRequestListener(config);
 

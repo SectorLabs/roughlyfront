@@ -35,7 +35,22 @@ You start Roughlyfront with the `roughlyfront` command and pass it the path to t
 $ roughlyfront -c myconfig.toml
 ```
 
-By default, Roughlyfront will listen on port `8787`.
+### Command line options
+```
+Usage: roughlyfront [options]
+
+A roughly accurate emulator for AWS Lambda@Edge.
+
+Options:
+  -c, --config <filename>  config file to use
+  -p, --port <port>        port to listen on (default: 8787)
+  -h, --host <host>        host to listen on (default: "0.0.0.0")
+  --https-key <file>       path to a SSL key to use
+  --https-cert <file>      path to a SSL certificate to use
+  -b, --build              build lambda functions using the configured build
+                           command
+  --help                   display help for command
+```
 
 ### Configuration
 #### Example
@@ -44,10 +59,7 @@ By default, Roughlyfront will listen on port `8787`.
 name = "myedgelambda"
 file = "./dist/index.js"
 handler = "nameofhandlerfunction"
-build = {
-    command = "webpack"
-    watch = ["./src"]
-}
+build = { command = "webpack", watch = ["./src"] }
 
 [[distributions]]
 id = "default"

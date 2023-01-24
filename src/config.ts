@@ -4,6 +4,15 @@ import toml from "toml";
 
 import type { CloudFrontEventType } from "./types";
 
+export interface Options {
+    config: string;
+    port: number;
+    host: string;
+    httpsKey?: string;
+    httpsCert?: string;
+    build: boolean;
+}
+
 export interface LambdaBuildConfig {
     command: string;
     watch?: string[];
@@ -43,9 +52,18 @@ export interface Config {
     distributions: DistributionConfig[];
 }
 
-export const parseConfig = async (filePath: string): Promise<Config> => {
-    const rawConfig = await toml.parse(fs.readFileSync(filePath, "utf8"));
-    rawConfig.directory = path.dirname(filePath);
+export const parseConfig = async (options: Options): Promise<Config> => {
+    const rawConfig: Config = await toml.parse(
+        fs.readFileSync(options.config, "utf8"),
+    );
+    rawConfig.directory = path.dirname(options.config);
+
+    if (!options.build) {
+        rawConfig.lambdas.forEach((lambda) => {
+            delete lambda["build"];
+        });
+    }
+
     // TODO: add validation
-    return rawConfig as Config;
+    return rawConfig;
 };
