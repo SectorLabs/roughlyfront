@@ -70,6 +70,7 @@ protocol = "http"
 domain = "localhost"
 port = "3000"
 path = ""
+headers = { "X-Test" = 1 }
 [[distributions.behaviors]]
 pattern = "/*"
 origin = "default"

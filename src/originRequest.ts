@@ -1,7 +1,11 @@
 import type { CloudFrontRequest, CloudFrontHeaders } from "aws-lambda";
 
 import type { OriginConfig } from "./config";
-import { parseCloudFrontHeaders, asCloudFrontHeaders } from "./headers";
+import {
+    parseCloudFrontHeaders,
+    parseFetchHeaders,
+    asCloudFrontHeaders,
+} from "./headers";
 
 const constructHeaders = (
     id: string,
@@ -49,7 +53,9 @@ export const constructOriginRequest = (
         body: request.body,
         origin: {
             custom: request.origin?.custom || {
-                customHeaders: {},
+                customHeaders: origin.headers
+                    ? asCloudFrontHeaders(parseFetchHeaders(origin.headers))
+                    : {},
                 domainName: origin.domain,
                 keepaliveTimeout: 5,
                 path: origin.path,

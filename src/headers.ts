@@ -35,6 +35,9 @@ export const parseCloudFrontHeaders = (
     return headers;
 };
 
+export const parseFetchHeaders = (headers: Record<string, string>): Headers =>
+    new Headers(Object.entries(headers));
+
 export const asCloudFrontHeaders = (headers: Headers): CloudFrontHeaders =>
     Array.from(headers.entries()).reduce(
         (acc, [name, value]) => ({
@@ -52,3 +55,17 @@ export const asFetchHeaders = (headers: Headers): Record<string, string> =>
         }),
         {},
     );
+
+export const mergeHeaders = (headersA: Headers, headersB: Headers): Headers => {
+    const mergedHeaders = new Headers();
+
+    Array.from(headersA.entries()).forEach(([name, value]) => {
+        mergedHeaders.set(name, value);
+    });
+
+    Array.from(headersB.entries()).forEach(([name, value]) => {
+        mergedHeaders.set(name, value);
+    });
+
+    return mergedHeaders;
+};

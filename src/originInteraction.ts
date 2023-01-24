@@ -1,4 +1,8 @@
-import type { CloudFrontRequest, CloudFrontResultResponse } from "aws-lambda";
+import type {
+    CloudFrontRequest,
+    CloudFrontCustomOrigin,
+    CloudFrontResultResponse,
+} from "aws-lambda";
 import fetch from "node-fetch-commonjs";
 import type { Response } from "node-fetch-commonjs";
 
@@ -6,17 +10,17 @@ import {
     parseCloudFrontHeaders,
     asCloudFrontHeaders,
     asFetchHeaders,
+    mergeHeaders,
 } from "./headers";
 
-const constructRequestURL = (originRequest: CloudFrontRequest): string => {
-    if (!originRequest.origin?.custom) {
-        throw new Error("Cannot figure out what origin to forward request to");
-    }
+const constructRequestURL = (
+    originRequest: CloudFrontRequest,
+    origin: CloudFrontCustomOrigin,
+): string => {
+    const host = `${origin.domainName}:${origin.port}`;
+    const protocol = origin.protocol;
 
-    const host = `${originRequest.origin.custom.domainName}:${originRequest.origin.custom.port}`;
-    const protocol = originRequest.origin.custom.protocol;
-
-    let uri = (originRequest.origin.custom.path || "") + originRequest.uri;
+    let uri = (origin.path || "") + originRequest.uri;
     if (originRequest.querystring) {
         uri += `?${originRequest.querystring}`;
     }
@@ -43,11 +47,25 @@ const constructResponseBody = async (response: Response): Promise<string> => {
 export const makeOriginRequest = async (
     originRequest: CloudFrontRequest,
 ): Promise<CloudFrontResultResponse> => {
-    const response = await fetch(constructRequestURL(originRequest), {
-        method: originRequest.method,
-        headers: asFetchHeaders(parseCloudFrontHeaders(originRequest.headers)),
-        body: constructRequestBody(originRequest),
-    });
+    if (!originRequest.origin?.custom) {
+        throw new Error("Cannot figure out what origin to forward request to");
+    }
+
+    const response = await fetch(
+        constructRequestURL(originRequest, originRequest.origin.custom),
+        {
+            method: originRequest.method,
+            headers: asFetchHeaders(
+                mergeHeaders(
+                    parseCloudFrontHeaders(originRequest.headers),
+                    parseCloudFrontHeaders(
+                        originRequest.origin.custom.customHeaders,
+                    ),
+                ),
+            ),
+            body: constructRequestBody(originRequest),
+        },
+    );
 
     return {
         status: response.status.toString(),

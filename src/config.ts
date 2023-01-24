@@ -31,6 +31,7 @@ export interface OriginConfig {
     domain: string;
     port: number;
     path: string;
+    headers?: Record<string, string>;
 }
 
 export interface BehaviorConfig {
