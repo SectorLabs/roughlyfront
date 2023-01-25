@@ -24,6 +24,7 @@ const writeHeaders = (
     // the appropiate headers.
     headers.delete("content-encoding");
     headers.delete("transfer-encoding");
+    headers.delete("content-length");
 
     // Simulate CloudFront headers
     headers.set("x-amz-cf-id", options.id);
