@@ -64,6 +64,7 @@ export const makeOriginRequest = async (
                 ),
             ),
             body: constructRequestBody(originRequest),
+            redirect: "manual",
         },
     );
 
