@@ -1,6 +1,7 @@
 import type { CloudFrontRequest, CloudFrontHeaders } from "aws-lambda";
 
 import type { OriginConfig } from "./config";
+import type { Viewer } from "./viewer";
 import {
     parseCloudFrontHeaders,
     parseFetchHeaders,
@@ -10,33 +11,30 @@ import {
 const constructHeaders = (
     id: string,
     request: CloudFrontRequest,
+    viewer: Viewer,
 ): CloudFrontHeaders => {
     const headers = parseCloudFrontHeaders(request.headers);
 
-    const forwardedIPs = (headers.get("x-forwarded-for") || "")
-        .split(",")
-        .filter((ip: string) => !!ip.trim());
-
     headers.set("x-amz-cf-id", id);
-    headers.set("CloudFront-Viewer-Address", request.clientIp);
-    headers.set("CloudFront-Viewer-ASN", "8708");
-    headers.set("CloudFront-Viewer-Country", "RO");
-    headers.set("CloudFront-Viewer-City", "Cluj-Napoca");
-    headers.set("CloudFront-Viewer-Country-Name", "Romania");
-    headers.set("CloudFront-Viewer-Country-Region", "CJ");
-    headers.set("CloudFront-Viewer-Country-Region-Name", "Cluj");
-    headers.set("CloudFront-Viewer-Latitude", "46.7834818");
-    headers.set("CloudFront-Viewer-Longitude", "23.5464732");
-    headers.set("CloudFront-Viewer-Postal-Code", "4000");
-    headers.set("CloudFront-Viewer-Time-Zone", "Europe/Bucharest");
-    headers.set("CloudFront-Viewer-HTTP-Version", "1.1");
+    headers.set("CloudFront-Viewer-Address", viewer.ip);
+    headers.set("CloudFront-Viewer-ASN", viewer.asn.toString());
+    headers.set("CloudFront-Viewer-Country", viewer.country);
+    headers.set("CloudFront-Viewer-City", viewer.city);
+    headers.set("CloudFront-Viewer-Country-Name", viewer.countryName);
+    headers.set("CloudFront-Viewer-Country-Region", viewer.countryRegion);
     headers.set(
-        "CloudFront-Forwarded-Proto",
-        headers.get("x-forwarded-proto") || "http",
+        "CloudFront-Viewer-Country-Region-Name",
+        viewer.countryRegionName,
     );
+    headers.set("CloudFront-Viewer-Latitude", viewer.latitude.toString());
+    headers.set("CloudFront-Viewer-Longitude", viewer.longitude.toString());
+    headers.set("CloudFront-Viewer-Postal-Code", viewer.postalCode);
+    headers.set("CloudFront-Viewer-Time-Zone", viewer.timeZone);
+    headers.set("CloudFront-Viewer-HTTP-Version", viewer.httpVersion);
+    headers.set("CloudFront-Forwarded-Proto", viewer.httpProtocol);
     headers.set(
         "X-Forwarded-For",
-        [...forwardedIPs, request.clientIp].join(", "),
+        [...viewer.forwardedIPs, viewer.ip].join(", "),
     );
 
     return asCloudFrontHeaders(headers);
@@ -45,11 +43,12 @@ const constructHeaders = (
 export const constructOriginRequest = (
     id: string,
     request: CloudFrontRequest,
+    viewer: Viewer,
     origin: OriginConfig,
 ): CloudFrontRequest => {
     return {
         clientIp: request.clientIp,
-        headers: constructHeaders(id, request),
+        headers: constructHeaders(id, request, viewer),
         method: request.method,
         querystring: request.querystring,
         uri: request.uri,

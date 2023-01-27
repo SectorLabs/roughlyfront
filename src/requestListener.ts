@@ -11,6 +11,7 @@ import type {
     BehaviorConfig,
     OriginConfig,
 } from "./config";
+import { constructViewer } from "./viewer";
 import { writeOriginResponse } from "./originResponse";
 import { makeOriginRequest } from "./originInteraction";
 import {
@@ -108,7 +109,11 @@ export const createRequestListener = (config: Config) => {
             origin: selectOriginByName(distribution, behavior.origin),
         };
 
-        const viewerRequest = await constructViewerRequest(incomingMessage);
+        const viewer = constructViewer(incomingMessage);
+        const viewerRequest = await constructViewerRequest(
+            incomingMessage,
+            viewer,
+        );
 
         const viewerResult = await handleRequestEvent(
             context,
@@ -133,6 +138,7 @@ export const createRequestListener = (config: Config) => {
             constructOriginRequest(
                 context.id,
                 viewerResult.asRequest(),
+                viewer,
                 context.origin,
             ),
         );

@@ -1,17 +1,8 @@
 import type * as http from "http";
 import type { CloudFrontRequest } from "aws-lambda";
-import type { Headers } from "node-fetch-commonjs";
 
+import type { Viewer } from "./viewer";
 import { parseIncomingMessageHeaders, asCloudFrontHeaders } from "./headers";
-
-const constructURL = (
-    incomingMessage: http.IncomingMessage,
-    headers: Headers,
-): URL => {
-    const host = headers.get("x-forwarded-host") || headers.get("host");
-    const protocol = headers.get("x-forwarded-proto") || "http";
-    return new URL(incomingMessage.url || "", `${protocol}://${host}`);
-};
 
 const readBody = async (
     incomingMessage: http.IncomingMessage,
@@ -35,12 +26,16 @@ const readBody = async (
 
 export const constructViewerRequest = async (
     incomingMessage: http.IncomingMessage,
+    viewer: Viewer,
 ): Promise<CloudFrontRequest> => {
+    const url = new URL(
+        incomingMessage.url || "",
+        `${viewer.httpProtocol}://${viewer.httpHost}`,
+    );
     const headers = parseIncomingMessageHeaders(incomingMessage);
-    const url = constructURL(incomingMessage, headers);
 
     const viewerRequest: CloudFrontRequest = {
-        clientIp: incomingMessage.socket.remoteAddress || "127.0.0.1",
+        clientIp: viewer.ip,
         headers: asCloudFrontHeaders(headers),
         method: incomingMessage.method || "GET",
         querystring: url.searchParams.toString(),
