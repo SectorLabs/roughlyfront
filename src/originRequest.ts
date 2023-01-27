@@ -30,7 +30,10 @@ const constructHeaders = (
     headers.set("CloudFront-Viewer-Postal-Code", "4000");
     headers.set("CloudFront-Viewer-Time-Zone", "Europe/Bucharest");
     headers.set("CloudFront-Viewer-HTTP-Version", "1.1");
-    headers.set("CloudFront-Forwarded-Proto", "http");
+    headers.set(
+        "CloudFront-Forwarded-Proto",
+        headers.get("x-forwarded-proto") || "http",
+    );
     headers.set(
         "X-Forwarded-For",
         [...forwardedIPs, request.clientIp].join(", "),
