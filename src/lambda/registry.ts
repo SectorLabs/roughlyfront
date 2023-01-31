@@ -71,11 +71,11 @@ export class LambdaRegistry {
             config.lambda.functions?.map(
                 (functionConfig: LambdaFunctionConfig) => {
                     return [
+                        functionConfig.name,
                         LambdaRegistry.makePathAbsolute(
                             functionConfig.file,
                             config.directory,
                         ),
-                        functionConfig.name,
                     ];
                 },
             ),
@@ -83,7 +83,7 @@ export class LambdaRegistry {
 
         const flatWatchPaths = [
             ...Object.keys(buildWatchPaths),
-            ...Object.keys(functionWatchPaths),
+            ...Object.values(functionWatchPaths),
         ];
 
         chokidar
@@ -92,15 +92,20 @@ export class LambdaRegistry {
                 awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 20 },
             })
             .on("all", (_event: string, affectedPath: string) => {
-                const affectedFunctionName = functionWatchPaths[affectedPath];
-                if (affectedFunctionName) {
-                    const affectedFunction = this.functions.find(
-                        (func) => func.name === affectedFunctionName,
-                    );
-                    if (affectedFunction) {
-                        affectedFunction.evaluate();
-                    }
-                }
+                Object.entries(functionWatchPaths).forEach(
+                    ([functionName, watchPath]) => {
+                        if (affectedPath !== watchPath) {
+                            return;
+                        }
+
+                        const func = this.functions.find(
+                            (func) => func.name === functionName,
+                        );
+                        if (func) {
+                            func.evaluate();
+                        }
+                    },
+                );
 
                 Object.entries(buildWatchPaths).reduce(
                     (acc: string[], [watchPath, buildConfig]) => {
