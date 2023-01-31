@@ -1,6 +1,6 @@
 import type { CloudFrontRequest, CloudFrontResultResponse } from "aws-lambda";
 
-export class LambdaResult {
+export class RequestEventResult {
     constructor(private result: CloudFrontRequest | CloudFrontResultResponse) {}
 
     isRequest(): boolean {

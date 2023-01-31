@@ -14,7 +14,7 @@ import chokidar from "chokidar";
 
 import { createEnvVars } from "./env";
 import type { LambdaConfig } from "./config";
-import { LambdaResult } from "./lambdaResult";
+import { RequestEventResult } from "./requestEventResult";
 
 export type LambdaHandler = (
     event: CloudFrontRequestEvent,
@@ -93,16 +93,16 @@ export class Lambda {
             });
     }
 
-    async invoke(
+    async invokeForRequestEvent(
         event: CloudFrontRequestEvent,
         context: Context,
-    ): Promise<LambdaResult> {
+    ): Promise<RequestEventResult> {
         if (!this.handler) {
             this.evaluate();
         }
 
         const result = await this.handler!(event, context);
-        return new LambdaResult(result);
+        return new RequestEventResult(result);
     }
 
     build() {
