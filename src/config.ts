@@ -19,7 +19,7 @@ export interface Config {
     directory: string;
     lambda: LambdaConfig;
     cloudfront: CloudFrontConfig;
-    cloudwatch: CloudWatchConfig;
+    cloudwatch?: CloudWatchConfig;
 }
 
 export const parseConfig = async (options: Options): Promise<Config> => {

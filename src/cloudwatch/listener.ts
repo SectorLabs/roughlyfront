@@ -22,7 +22,8 @@ export class CloudWatchListener {
     ) {}
 
     public async invokeSubscriptions(): Promise<void> {
-        for (const subscription of this.config.cloudwatch.subscriptions) {
+        for (const subscription of this.config.cloudwatch?.subscriptions ||
+            []) {
             for (const group of this.cloudWatch.groups) {
                 if (subscription.group !== group.name) {
                     continue;
@@ -78,8 +79,8 @@ export class CloudWatchListener {
         } catch (e) {}
     }
 
-    private filterMessages(messages: string[], pattern: string): string[] {
-        const filters = pattern
+    private filterMessages(messages: string[], pattern?: string): string[] {
+        const filters = (pattern || "")
             .replace(/-/g, " -")
             .split(" ")
             .filter((filter) => !!filter);
