@@ -15,9 +15,12 @@ export class CloudWatchLogStream {
         this.id = crypto.randomUUID().replace(/-/g, "");
         this.prefix = prefix;
         this.moment = new Date();
-        this.name = `${this.moment.getFullYear()}/${
-            this.moment.getMonth() + 1
-        }/${this.moment.getDate()}/[${prefix}]${this.id}`;
+
+        const year = this.moment.getFullYear();
+        const month = ("0" + (this.moment.getMonth() + 1)).slice(-2);
+        const day = ("0" + this.moment.getDate()).slice(-2);
+
+        this.name = `${year}/${month}/${day}/[${prefix}]${this.id}`;
     }
 
     public log(message: string) {
