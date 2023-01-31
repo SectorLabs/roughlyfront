@@ -3,7 +3,7 @@ import { CloudWatchLogStream } from "./logStream";
 export class CloudWatchLogGroup {
     public name: string;
 
-    private streams: CloudWatchLogStream[] = [];
+    public streams: CloudWatchLogStream[] = [];
 
     constructor(name: string) {
         this.name = name;
@@ -21,5 +21,9 @@ export class CloudWatchLogGroup {
         }
 
         return stream;
+    }
+
+    public clear(): void {
+        this.streams = [];
     }
 }

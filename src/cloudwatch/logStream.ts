@@ -9,7 +9,7 @@ export class CloudWatchLogStream {
 
     public name: string;
 
-    private messages: string[] = [];
+    public messages: string[] = [];
 
     constructor(prefix: string) {
         this.id = crypto.randomUUID().replace(/-/g, "");

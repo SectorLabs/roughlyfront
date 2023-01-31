@@ -1,19 +1,23 @@
 import { CloudWatchLogGroup } from "./logGroup";
 
 export class CloudWatch {
-    private logGroups: CloudWatchLogGroup[] = [];
+    public groups: CloudWatchLogGroup[] = [];
 
     public group(name: string): CloudWatchLogGroup {
-        let logGroup = this.logGroups.find(
-            (logGroup) => logGroup.name === name,
-        );
-        if (logGroup) {
-            return logGroup;
+        let group = this.groups.find((group) => group.name === name);
+        if (group) {
+            return group;
         }
 
-        logGroup = new CloudWatchLogGroup(name);
-        this.logGroups.push(logGroup);
+        group = new CloudWatchLogGroup(name);
+        this.groups.push(group);
 
-        return logGroup;
+        return group;
+    }
+
+    public clear(): void {
+        this.groups.forEach((group) => {
+            group.clear();
+        });
     }
 }
