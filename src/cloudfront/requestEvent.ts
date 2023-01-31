@@ -1,12 +1,14 @@
 import type { CloudFrontRequest, CloudFrontRequestEvent } from "aws-lambda";
 
-import type { CloudFrontEventType } from "./types";
-import type { DistributionConfig } from "./config";
+import type {
+    CloudFrontEventType,
+    CloudFrontDistributionConfig,
+} from "./types";
 
 export const constructRequestEvent = (
     id: string,
     eventType: CloudFrontEventType,
-    distribution: DistributionConfig,
+    distribution: CloudFrontDistributionConfig,
     request: CloudFrontRequest,
 ): CloudFrontRequestEvent => ({
     Records: [

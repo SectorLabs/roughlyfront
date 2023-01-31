@@ -2,7 +2,7 @@ import type * as http from "http";
 
 import { parseIncomingMessageHeaders } from "./headers";
 
-export interface Viewer {
+export interface CloudFrontViewer {
     ip: string;
     forwardedIPs: string[];
     asn: number;
@@ -22,7 +22,7 @@ export interface Viewer {
 
 export const constructViewer = (
     incomingMessage: http.IncomingMessage,
-): Viewer => {
+): CloudFrontViewer => {
     const headers = parseIncomingMessageHeaders(incomingMessage);
 
     return {

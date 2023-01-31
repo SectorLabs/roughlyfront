@@ -2,7 +2,8 @@ import * as fs from "fs";
 import * as path from "path";
 import toml from "toml";
 
-import type { CloudFrontEventType } from "./types";
+import type { LambdaConfig } from "./lambda";
+import type { CloudFrontConfig } from "./cloudfront";
 
 export interface Options {
     config: string;
@@ -13,44 +14,10 @@ export interface Options {
     build: boolean;
 }
 
-export interface LambdaBuildConfig {
-    command: string;
-    watch?: string[];
-}
-
-export interface LambdaConfig {
-    name: string;
-    file: string;
-    handler: string;
-    build?: LambdaBuildConfig;
-}
-
-export interface OriginConfig {
-    name: string;
-    protocol: string;
-    domain: string;
-    port: number;
-    path: string;
-    headers?: Record<string, string>;
-}
-
-export interface BehaviorConfig {
-    pattern: string;
-    origin: string;
-    lambdas?: Record<CloudFrontEventType, string>;
-}
-
-export interface DistributionConfig {
-    id: string;
-    domains: string[];
-    origins: OriginConfig[];
-    behaviors: BehaviorConfig[];
-}
-
 export interface Config {
     directory: string;
-    lambdas: LambdaConfig[];
-    distributions: DistributionConfig[];
+    lambda: LambdaConfig;
+    cloudfront: CloudFrontConfig;
 }
 
 export const parseConfig = async (options: Options): Promise<Config> => {
@@ -60,9 +27,7 @@ export const parseConfig = async (options: Options): Promise<Config> => {
     rawConfig.directory = path.dirname(options.config);
 
     if (!options.build) {
-        rawConfig.lambdas.forEach((lambda) => {
-            delete lambda["build"];
-        });
+        rawConfig.lambda.builds = [];
     }
 
     // TODO: add validation

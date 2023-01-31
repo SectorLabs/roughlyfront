@@ -1,14 +1,14 @@
 import outmatch from "outmatch";
 import type {
-    DistributionConfig,
-    BehaviorConfig,
-    OriginConfig,
-} from "./config";
+    CloudFrontDistributionConfig,
+    CloudFrontBehaviorConfig,
+    CloudFrontOriginConfig,
+} from "./types";
 
 export const selectDistributionByHost = (
-    distributions: DistributionConfig[],
+    distributions: CloudFrontDistributionConfig[],
     host: string,
-): DistributionConfig => {
+): CloudFrontDistributionConfig => {
     const distribution = distributions.find((distribution) =>
         distribution.domains.includes(host),
     );
@@ -22,9 +22,9 @@ export const selectDistributionByHost = (
 };
 
 export const selectBehaviorByPath = (
-    distribution: DistributionConfig,
+    distribution: CloudFrontDistributionConfig,
     path: string,
-): BehaviorConfig => {
+): CloudFrontBehaviorConfig => {
     const behavior = distribution.behaviors.find((behavior) =>
         outmatch(behavior.pattern, false)(path),
     );
@@ -38,9 +38,9 @@ export const selectBehaviorByPath = (
 };
 
 export const selectOriginByName = (
-    distribution: DistributionConfig,
+    distribution: CloudFrontDistributionConfig,
     name: string,
-): OriginConfig => {
+): CloudFrontOriginConfig => {
     const origin = distribution.origins.find((origin) => origin.name === name);
     if (!origin) {
         throw new Error(`No origin named '${name}' found could be found`);

@@ -9,8 +9,12 @@ Roughlyfront is a small and mostly correct emulator for AWS Lambda@Edge. It allo
 * Viewer request events
 * Origin request events
 * Generated responses
-* Hot reloading lambdas
+* Compatible logging format
 * HTTPS
+* Hot reloading lambda functions
+* Hot rebuilding lambda functions
+* Custom origin headers
+* Custom origin path
 * Mocked `CloudFront-Viewer-*` headers
 * Mocked `x-cache` response headers
 * Mocked `x-amz-*` response headers
@@ -55,23 +59,27 @@ Options:
 ### Configuration
 #### Example
 ```toml
-[[lambdas]]
+[[lambda.builds]]
+command = "webpack"
+watch = ["./src"]
+
+[[lambda.functions]]
 name = "myedgelambda"
+version = 1
 file = "./dist/index.js"
 handler = "nameofhandlerfunction"
-build = { command = "webpack", watch = ["./src"] }
 
-[[distributions]]
+[[cloudfront.distributions]]
 id = "default"
 domains = ["mypublicdomain.com"]
-[[distributions.origins]]
+[[cloudfront.distributions.origins]]
 name = "default"
 protocol = "http"
 domain = "localhost"
-port = "3000"
+port = 3000
 path = ""
 headers = { "X-Test" = 1 }
-[[distributions.behaviors]]
+[[cloudfront.distributions.behaviors]]
 pattern = "/*"
 origin = "default"
 lambdas = { origin-request = "myedgelambda" }

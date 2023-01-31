@@ -1,7 +1,7 @@
 import type * as http from "http";
 import type { CloudFrontRequest } from "aws-lambda";
 
-import type { Viewer } from "./viewer";
+import type { CloudFrontViewer } from "./viewer";
 import { parseIncomingMessageHeaders, asCloudFrontHeaders } from "./headers";
 
 const readBody = async (
@@ -26,7 +26,7 @@ const readBody = async (
 
 export const constructViewerRequest = async (
     incomingMessage: http.IncomingMessage,
-    viewer: Viewer,
+    viewer: CloudFrontViewer,
 ): Promise<CloudFrontRequest> => {
     const url = new URL(
         incomingMessage.url || "",

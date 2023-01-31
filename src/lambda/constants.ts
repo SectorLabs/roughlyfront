@@ -1,0 +1,5 @@
+export const AWS_LAMBDA_FUNCTION_VERSION = 1;
+
+export const AWS_LAMBDA_FUNCTION_MEMORY_SIZE = 128;
+
+export const AWS_LAMBDA_TIME_LIMIT_MS = 5000;

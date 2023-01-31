@@ -2,7 +2,6 @@ import * as vm from "vm";
 import * as fs from "fs";
 import * as path from "path";
 import { Module } from "module";
-import * as child_process from "child_process";
 import type {
     CloudFrontRequest,
     CloudFrontRequestEvent,
@@ -10,22 +9,15 @@ import type {
     Context,
 } from "aws-lambda";
 import consola from "consola";
-import chokidar from "chokidar";
+
+import type { CloudWatchLogGroup, CloudWatchLogStream } from "../cloudwatch";
+import { AWS_REGION, AWS_ACCOUNT_ID } from "../constants";
+import { CloudFrontRequestEventResult } from "../cloudfront/requestEventResult";
 
 import {
-    AWS_REGION,
-    AWS_ACCOUNT_ID,
-    AWS_LAMBDA_FUNCTION_VERSION,
     AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
     AWS_LAMBDA_TIME_LIMIT_MS,
 } from "./constants";
-import type { LambdaConfig } from "./config";
-import { RequestEventResult } from "./requestEventResult";
-import type {
-    CloudWatch,
-    CloudWatchLogGroup,
-    CloudWatchLogStream,
-} from "./cloudWatch";
 
 export type LambdaHandler = (
     event: CloudFrontRequestEvent,
@@ -41,99 +33,46 @@ interface Console {
     error: ConsoleFunc;
 }
 
-export class Lambda {
+export class LambdaFunction {
     public name: string;
+    public version: number;
     public filePath: string;
     public handlerName: string;
-    public buildCommand: string | undefined;
-    public buildWatchPaths: string[] | undefined;
+    private logGroup: CloudWatchLogGroup;
 
     private handler: LambdaHandler | null = null;
     private context: vm.Context | null = null;
-    private logGroup: CloudWatchLogGroup;
 
     constructor(
         name: string,
+        version: number,
         filePath: string,
         handlerName: string,
         logGroup: CloudWatchLogGroup,
-        buildCommand?: string | undefined,
-        buildWatchPaths?: string[] | undefined,
     ) {
         this.name = name;
+        this.version = version;
         this.filePath = filePath;
         this.handlerName = handlerName;
-        this.handler = null;
-        this.buildCommand = buildCommand;
-        this.buildWatchPaths = buildWatchPaths;
         this.logGroup = logGroup;
+
+        this.handler = null;
+        this.context = null;
     }
 
-    static initialize(
-        config: LambdaConfig,
-        directory: string,
-        cloudWatch: CloudWatch,
-    ): Lambda {
-        const filePath = path.resolve(
-            path.isAbsolute(config.file)
-                ? config.file
-                : path.resolve(path.join(directory, config.file)),
-        );
-
-        const buildWatchPaths = config.build?.watch
-            ? config.build?.watch.map((watchPath) =>
-                  path.isAbsolute(watchPath)
-                      ? watchPath
-                      : path.resolve(path.join(directory, watchPath)),
-              )
-            : config.build?.watch;
-
-        const lambda = new Lambda(
-            config.name,
-            filePath,
-            config.handler,
-            cloudWatch.group(`/aws/lambda/${AWS_REGION}.${config.name}`),
-            config.build?.command,
-            buildWatchPaths,
-        );
-
-        lambda.build();
-        lambda.evaluate();
-        lambda.enableHotReloading();
-        return lambda;
-    }
-
-    enableHotReloading() {
-        const watchPaths = [this.filePath];
-        if (this.buildWatchPaths) {
-            watchPaths.push(...this.buildWatchPaths);
-        }
-
-        chokidar
-            .watch(watchPaths, {
-                ignoreInitial: true,
-                awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 20 },
-            })
-            .on("all", (_event: string, affectedPath: string) => {
-                if (affectedPath === this.filePath) {
-                    this.evaluate();
-                } else {
-                    this.build();
-                }
-            });
-    }
-
-    async invokeForRequestEvent(
+    public async invokeForRequestEvent(
         id: string,
         event: CloudFrontRequestEvent,
-    ): Promise<RequestEventResult> {
-        if (!this.handler || !this.context) {
+    ): Promise<CloudFrontRequestEventResult> {
+        if (!this.wasEvaluated()) {
             this.evaluate();
         }
 
         const logStream = this.logGroup.stream();
         const logConsole = this.createConsole(id, logStream);
 
+        // Mutates the config and leaks into the next invocation,
+        // but that is how AWS Lambda works so we're not fixing it.
         this.patchEnv(logStream);
         this.patchConsole(logConsole);
 
@@ -149,8 +88,13 @@ export class Lambda {
         const [result, error] = await this.invoke(event, eventContext);
 
         const endTime = performance.now();
-        const duration = endTime - startTime;
-        const billedDuration = Math.ceil(duration / 10) * 10;
+
+        // CloudWatch logs show duration accurate to two decimals
+        const duration = Math.round((endTime - startTime) * 100) / 100;
+
+        // Billing is done per millisecond, rounded up
+        // https://aws.amazon.com/about-aws/whats-new/2020/12/aws-lambda-changes-duration-billing-granularity-from-100ms-to-1ms/
+        const billedDuration = Math.ceil(duration);
 
         logStream.log(`END RequestId: ${id}`);
         logStream.log(
@@ -165,20 +109,11 @@ export class Lambda {
         return result;
     }
 
-    build() {
-        if (!this.buildCommand) {
-            return;
-        }
-
-        // Wrap in try-catch because we don't actually want to die
-        // just because the build failed. The user will simply
-        // fix the error and another rebuild will occur.
-        try {
-            child_process.execSync(this.buildCommand, { stdio: "inherit" });
-        } catch (error) {}
+    public wasEvaluated(): boolean {
+        return !!this.handler && !!this.context;
     }
 
-    evaluate() {
+    public evaluate(): void {
         const src = fs.readFileSync(this.filePath, "utf8");
 
         const script = new vm.Script(Module.wrap(src), {
@@ -227,10 +162,10 @@ export class Lambda {
     private async invoke(
         event: CloudFrontRequestEvent,
         eventContext: Context,
-    ): Promise<[RequestEventResult, null] | [null, Error]> {
+    ): Promise<[CloudFrontRequestEventResult, null] | [null, Error]> {
         try {
             const result = await this.handler!(event, eventContext);
-            return [new RequestEventResult(result), null];
+            return [new CloudFrontRequestEventResult(result), null];
         } catch (e) {
             return [null, e as Error];
         }
@@ -242,7 +177,6 @@ export class Lambda {
             ...this.constructEventEnv(logStream),
         };
     }
-
     private patchConsole(console: Console): void {
         this.context!["console"] = {
             ...this.context!["console"],
@@ -251,6 +185,10 @@ export class Lambda {
     }
 
     private createConsole(id: string, logStream: CloudWatchLogStream): Console {
+        // Not an exhaustive list of functions that a lambda function
+        // could use. It might be more reliable to just trap/capture
+        // stdout and stderr instead of intercepting console logs,
+        // but this is easier, especially for multi-line logs.
         return {
             log: this.createConsoleFunc(id, "INFO", logStream),
             info: this.createConsoleFunc(id, "INFO", logStream),
@@ -284,7 +222,7 @@ export class Lambda {
             AWS_LAMBDA_FUNCTION_NAME: this.name,
             AWS_LAMBDA_FUNCTION_MEMORY_SIZE:
                 AWS_LAMBDA_FUNCTION_MEMORY_SIZE.toString(),
-            AWS_LAMBDA_FUNCTION_VERSION: AWS_LAMBDA_FUNCTION_VERSION.toString(),
+            AWS_LAMBDA_FUNCTION_VERSION: this.version.toString(),
             AWS_LAMBDA_INITIALIZATION_TYPE: "on-demand",
             AWS_LAMBDA_LOG_GROUP_NAME: this.logGroup.name,
             AWS_LAMBDA_LOG_STREAM_NAME: logStream.name,
@@ -307,7 +245,7 @@ export class Lambda {
         return {
             callbackWaitsForEmptyEventLoop: false,
             functionName: this.name,
-            functionVersion: AWS_LAMBDA_FUNCTION_VERSION.toString(),
+            functionVersion: this.version.toString(),
             invokedFunctionArn: `arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:aws:function:${this.name}`,
             memoryLimitInMB: AWS_LAMBDA_FUNCTION_MEMORY_SIZE.toString(),
             awsRequestId: id,

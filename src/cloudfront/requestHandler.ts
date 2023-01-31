@@ -2,15 +2,16 @@ import * as crypto from "crypto";
 import type * as http from "http";
 import type { CloudFrontRequest } from "aws-lambda";
 
-import type { Lambda } from "./lambda";
-import type { CloudFrontEventType } from "./types";
+import type { Config } from "../config";
+import type { LambdaFunction, LambdaRegistry } from "../lambda";
+
 import type {
-    Config,
-    DistributionConfig,
-    BehaviorConfig,
-    OriginConfig,
-} from "./config";
-import { Viewer, constructViewer } from "./viewer";
+    CloudFrontEventType,
+    CloudFrontDistributionConfig,
+    CloudFrontBehaviorConfig,
+    CloudFrontOriginConfig,
+} from "./types";
+import { CloudFrontViewer, constructViewer } from "./viewer";
 import { writeOriginResponse } from "./originResponse";
 import { makeOriginRequest } from "./originInteraction";
 import {
@@ -21,25 +22,25 @@ import {
 import { constructViewerRequest } from "./viewerRequest";
 import { constructOriginRequest } from "./originRequest";
 import { constructRequestEvent } from "./requestEvent";
-import { RequestEventResult } from "./requestEventResult";
-import { generateErrorResponse } from "./error";
+import { CloudFrontRequestEventResult } from "./requestEventResult";
+import { generateErrorResponse } from "./errorResponse";
 
-export class RequestHandler {
+export class CloudFrontRequestHandler {
     private id: string;
 
     private host: string;
 
-    private distribution: DistributionConfig;
+    private distribution: CloudFrontDistributionConfig;
 
-    private behavior: BehaviorConfig;
+    private behavior: CloudFrontBehaviorConfig;
 
-    private origin: OriginConfig;
+    private origin: CloudFrontOriginConfig;
 
-    private viewer: Viewer;
+    private viewer: CloudFrontViewer;
 
     constructor(
         config: Config,
-        private lambdas: Lambda[],
+        private lambdaRegistry: LambdaRegistry,
         private incomingMessage: http.IncomingMessage,
         private outgoingMessage: http.ServerResponse,
     ) {
@@ -55,7 +56,7 @@ export class RequestHandler {
         const path = incomingMessage.url?.split("?")[0] || "/";
 
         this.distribution = selectDistributionByHost(
-            config.distributions,
+            config.cloudfront.distributions,
             this.host,
         );
         this.behavior = selectBehaviorByPath(this.distribution, path);
@@ -127,10 +128,10 @@ export class RequestHandler {
     private async handleRequestEvent(
         eventType: CloudFrontEventType,
         request: CloudFrontRequest,
-    ): Promise<RequestEventResult> {
+    ): Promise<CloudFrontRequestEventResult> {
         const lambda = this.selectLambdaForEvent(eventType);
         if (!lambda) {
-            return new RequestEventResult(request);
+            return new CloudFrontRequestEventResult(request);
         }
 
         return this.invokeLambdaForRequestEvent(eventType, request, lambda);
@@ -139,8 +140,8 @@ export class RequestHandler {
     private async invokeLambdaForRequestEvent(
         eventType: CloudFrontEventType,
         request: CloudFrontRequest,
-        lambda: Lambda,
-    ): Promise<RequestEventResult> {
+        lambda: LambdaFunction,
+    ): Promise<CloudFrontRequestEventResult> {
         const requestEvent = constructRequestEvent(
             this.id,
             eventType,
@@ -151,27 +152,20 @@ export class RequestHandler {
         try {
             return await lambda.invokeForRequestEvent(this.id, requestEvent);
         } catch (error) {
-            return new RequestEventResult(generateErrorResponse(error));
+            return new CloudFrontRequestEventResult(
+                generateErrorResponse(error),
+            );
         }
     }
 
     private selectLambdaForEvent(
         eventType: CloudFrontEventType,
-    ): Lambda | null {
+    ): LambdaFunction | null {
         const lambdaName = this.behavior.lambdas?.[eventType];
         if (!lambdaName) {
             return null;
         }
 
-        const lambda = this.lambdas.find(
-            (lambda) => lambda.name === lambdaName,
-        );
-        if (!lambda) {
-            throw new Error(
-                `Lambda '${lambdaName}' was not initialized or declared`,
-            );
-        }
-
-        return lambda;
+        return this.lambdaRegistry.get(lambdaName);
     }
 }

@@ -1,14 +1,11 @@
 #!/usr/bin/env node
 
-import * as fs from "fs";
-import * as http from "http";
-import * as https from "https";
-import consola from "consola";
 import { program, Option } from "commander";
 
-import { CloudWatch } from "./cloudWatch";
 import { parseConfig } from "./config";
-import { createRequestListener } from "./requestListener";
+import { CloudWatch } from "./cloudwatch";
+import { LambdaRegistry } from "./lambda";
+import { CloudFrontServer } from "./cloudfront";
 
 export const main = async (args: string[]): Promise<void> => {
     program
@@ -57,26 +54,13 @@ export const main = async (args: string[]): Promise<void> => {
     });
 
     const cloudWatch = new CloudWatch();
-    const requestListener = createRequestListener(config, cloudWatch);
+    const lambdaRegistry = LambdaRegistry.create(config, cloudWatch);
+    const cloudFront = new CloudFrontServer(config, lambdaRegistry);
 
-    let server = null;
-    if (options["httpsKey"] && options["httpsCert"]) {
-        server = https.createServer(
-            {
-                key: fs.readFileSync(options["httpsKey"]),
-                cert: fs.readFileSync(options["httpsCert"]),
-            },
-            requestListener,
-        );
-
-        consola.success(
-            `Enabled HTTPS with ${options["httpsCert"]} as the certificate`,
-        );
-    } else {
-        server = http.createServer(requestListener);
-    }
-
-    server.listen(options["port"], options["host"], () => {
-        consola.success(`Listening on ${options["host"]}:${options["port"]}`);
+    cloudFront.listen({
+        port: options["port"],
+        host: options["host"],
+        httpsKey: options["httpsKey"],
+        httpsCert: options["httpsCert"],
     });
 };

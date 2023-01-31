@@ -1,7 +1,7 @@
 import type { CloudFrontRequest, CloudFrontHeaders } from "aws-lambda";
 
-import type { OriginConfig } from "./config";
-import type { Viewer } from "./viewer";
+import type { CloudFrontOriginConfig } from "./types";
+import type { CloudFrontViewer } from "./viewer";
 import {
     parseCloudFrontHeaders,
     parseFetchHeaders,
@@ -11,7 +11,7 @@ import {
 const constructHeaders = (
     id: string,
     request: CloudFrontRequest,
-    viewer: Viewer,
+    viewer: CloudFrontViewer,
 ): CloudFrontHeaders => {
     const headers = parseCloudFrontHeaders(request.headers);
 
@@ -43,8 +43,8 @@ const constructHeaders = (
 export const constructOriginRequest = (
     id: string,
     request: CloudFrontRequest,
-    viewer: Viewer,
-    origin: OriginConfig,
+    viewer: CloudFrontViewer,
+    origin: CloudFrontOriginConfig,
 ): CloudFrontRequest => {
     return {
         clientIp: request.clientIp,
