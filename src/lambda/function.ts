@@ -68,7 +68,7 @@ export class LambdaFunction {
             this.evaluate();
         }
 
-        const logStream = this.logGroup.stream();
+        const logStream = this.logGroup.stream(this.version.toString());
         const logConsole = this.createConsole(id, logStream);
 
         // Mutates the config and leaks into the next invocation,

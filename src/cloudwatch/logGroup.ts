@@ -9,10 +9,14 @@ export class CloudWatchLogGroup {
         this.name = name;
     }
 
-    public stream(): CloudWatchLogStream {
-        let stream = this.streams[this.streams.length - 1];
+    public stream(prefix: string): CloudWatchLogStream {
+        const prefixedStreams = this.streams.filter(
+            (stream) => stream.prefix === prefix,
+        );
+        let stream = prefixedStreams[prefixedStreams.length - 1];
+
         if (!stream) {
-            stream = new CloudWatchLogStream();
+            stream = new CloudWatchLogStream(prefix);
             this.streams.push(stream);
         }
 
