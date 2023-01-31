@@ -1,6 +1,7 @@
 import * as vm from "vm";
 import * as fs from "fs";
 import * as path from "path";
+import * as util from "util";
 import { Module } from "module";
 import type { Context } from "aws-lambda";
 import consola from "consola";
@@ -196,12 +197,11 @@ export class LambdaFunction {
         level: string,
         logStream: CloudWatchLogStream,
     ): ConsoleFunc {
-        return (...args) =>
-            logStream.log(
-                `${new Date().toISOString()}\t${id}\t${level}\t${args.join(
-                    " ",
-                )}`,
-            );
+        return (...args) => {
+            const prefix = `${new Date().toISOString()}\t${id}\t${level}`;
+            const message = util.format(...args);
+            logStream.log(`${prefix}\t${message}`);
+        };
     }
 
     private constructEventEnv(

@@ -21,27 +21,27 @@ export class CloudWatchListener {
         private lambdaRegistry: LambdaRegistry,
     ) {}
 
-    public invokeSubscriptions(): void {
-        this.config.cloudwatch.subscriptions.forEach((subscription) => {
-            this.cloudWatch.groups.forEach((group) => {
+    public async invokeSubscriptions(): Promise<void> {
+        for (const subscription of this.config.cloudwatch.subscriptions) {
+            for (const group of this.cloudWatch.groups) {
                 if (subscription.group !== group.name) {
-                    return;
+                    continue;
                 }
 
-                group.streams.forEach((stream) => {
-                    this.deliverStream(subscription, group, stream);
-                });
-            });
-        });
+                for (const stream of group.streams) {
+                    await this.deliverStream(subscription, group, stream);
+                }
+            }
+        }
 
         this.cloudWatch.clear();
     }
 
-    private deliverStream(
+    private async deliverStream(
         subscription: CloudWatchSubscriptionConfig,
         group: CloudWatchLogGroup,
         stream: CloudWatchLogStream,
-    ): void {
+    ): Promise<void> {
         const filteredMessages = this.filterMessages(
             stream.messages,
             subscription.pattern,
@@ -73,7 +73,9 @@ export class CloudWatchListener {
             },
         };
 
-        lambda.invoke(crypto.randomUUID().replace(/-/g, ""), event);
+        try {
+            await lambda.invoke(crypto.randomUUID().replace(/-/g, ""), event);
+        } catch (e) {}
     }
 
     private filterMessages(messages: string[], pattern: string): string[] {
