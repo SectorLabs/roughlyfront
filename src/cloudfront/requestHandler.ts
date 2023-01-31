@@ -1,6 +1,10 @@
 import * as crypto from "crypto";
 import type * as http from "http";
-import type { CloudFrontRequest } from "aws-lambda";
+import type {
+    CloudFrontRequest,
+    CloudFrontRequestEvent,
+    CloudFrontResultResponse,
+} from "aws-lambda";
 
 import type { Config } from "../config";
 import type { LambdaFunction, LambdaRegistry } from "../lambda";
@@ -150,7 +154,12 @@ export class CloudFrontRequestHandler {
         );
 
         try {
-            return await lambda.invokeForRequestEvent(this.id, requestEvent);
+            return new CloudFrontRequestEventResult(
+                await lambda.invoke<
+                    CloudFrontRequestEvent,
+                    CloudFrontRequest | CloudFrontResultResponse
+                >(this.id, requestEvent),
+            );
         } catch (error) {
             return new CloudFrontRequestEventResult(
                 generateErrorResponse(error),

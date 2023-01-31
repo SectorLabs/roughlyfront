@@ -4,6 +4,7 @@ import toml from "toml";
 
 import type { LambdaConfig } from "./lambda";
 import type { CloudFrontConfig } from "./cloudfront";
+import type { CloudWatchConfig } from "./cloudwatch";
 
 export interface Options {
     config: string;
@@ -18,6 +19,7 @@ export interface Config {
     directory: string;
     lambda: LambdaConfig;
     cloudfront: CloudFrontConfig;
+    cloudwatch: CloudWatchConfig;
 }
 
 export const parseConfig = async (options: Options): Promise<Config> => {

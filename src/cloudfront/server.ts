@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as http from "http";
 import * as https from "https";
+import * as events from "events";
 import consola from "consola";
 
 import type { LambdaRegistry } from "../lambda";
@@ -15,11 +16,13 @@ interface CloudFrontListenOptions {
     httpsCert?: string;
 }
 
-export class CloudFrontServer {
+export class CloudFrontServer extends events.EventEmitter {
     constructor(
         private config: Config,
         private lambdaRegistry: LambdaRegistry,
-    ) {}
+    ) {
+        super();
+    }
 
     public listen(options: CloudFrontListenOptions) {
         const requestListener = this.onRequest.bind(this);
@@ -58,5 +61,7 @@ export class CloudFrontServer {
         );
 
         await requestHandler.handle();
+
+        this.emit("request");
     }
 }

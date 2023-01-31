@@ -3,9 +3,9 @@
 import { program, Option } from "commander";
 
 import { parseConfig } from "./config";
-import { CloudWatch } from "./cloudwatch";
 import { LambdaRegistry } from "./lambda";
 import { CloudFrontServer } from "./cloudfront";
+import { CloudWatch, CloudWatchListener } from "./cloudwatch";
 
 export const main = async (args: string[]): Promise<void> => {
     program
@@ -55,7 +55,16 @@ export const main = async (args: string[]): Promise<void> => {
 
     const cloudWatch = new CloudWatch();
     const lambdaRegistry = LambdaRegistry.create(config, cloudWatch);
+    const cloudWatchListener = new CloudWatchListener(
+        config,
+        cloudWatch,
+        lambdaRegistry,
+    );
     const cloudFront = new CloudFrontServer(config, lambdaRegistry);
+
+    cloudFront.on("request", () => {
+        cloudWatchListener.invokeSubscriptions();
+    });
 
     cloudFront.listen({
         port: options["port"],

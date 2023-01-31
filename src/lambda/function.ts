@@ -2,17 +2,11 @@ import * as vm from "vm";
 import * as fs from "fs";
 import * as path from "path";
 import { Module } from "module";
-import type {
-    CloudFrontRequest,
-    CloudFrontRequestEvent,
-    CloudFrontResponse,
-    Context,
-} from "aws-lambda";
+import type { Context } from "aws-lambda";
 import consola from "consola";
 
 import type { CloudWatchLogGroup, CloudWatchLogStream } from "../cloudwatch";
 import { AWS_REGION, AWS_ACCOUNT_ID } from "../constants";
-import { CloudFrontRequestEventResult } from "../cloudfront/requestEventResult";
 
 import {
     AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
@@ -20,9 +14,9 @@ import {
 } from "./constants";
 
 export type LambdaHandler = (
-    event: CloudFrontRequestEvent,
+    event: unknown,
     context: Context,
-) => Promise<CloudFrontRequest | CloudFrontResponse>;
+) => Promise<unknown>;
 
 type ConsoleFunc = (...args: unknown[]) => void;
 
@@ -60,10 +54,10 @@ export class LambdaFunction {
         this.context = null;
     }
 
-    public async invokeForRequestEvent(
+    public async invoke<TEvent, TResult>(
         id: string,
-        event: CloudFrontRequestEvent,
-    ): Promise<CloudFrontRequestEventResult> {
+        event: TEvent,
+    ): Promise<TResult> {
         if (!this.wasEvaluated()) {
             this.evaluate();
         }
@@ -85,7 +79,7 @@ export class LambdaFunction {
 
         logStream.log(`START RequestId: ${id} ${eventContext.functionVersion}`);
 
-        const [result, error] = await this.invoke(event, eventContext);
+        const [result, error] = await this.invokeTryCatch(event, eventContext);
 
         const endTime = performance.now();
 
@@ -106,7 +100,7 @@ export class LambdaFunction {
             throw error;
         }
 
-        return result;
+        return result as TResult;
     }
 
     public wasEvaluated(): boolean {
@@ -159,13 +153,13 @@ export class LambdaFunction {
         this.handler = handler as LambdaHandler;
     }
 
-    private async invoke(
-        event: CloudFrontRequestEvent,
+    private async invokeTryCatch(
+        event: unknown,
         eventContext: Context,
-    ): Promise<[CloudFrontRequestEventResult, null] | [null, Error]> {
+    ): Promise<[unknown, null] | [null, Error]> {
         try {
             const result = await this.handler!(event, eventContext);
-            return [new CloudFrontRequestEventResult(result), null];
+            return [result, null];
         } catch (e) {
             return [null, e as Error];
         }
