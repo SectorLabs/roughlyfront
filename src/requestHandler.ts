@@ -1,5 +1,4 @@
 import * as crypto from "crypto";
-import consola from "consola";
 import type * as http from "http";
 import type { CloudFrontRequest } from "aws-lambda";
 
@@ -19,7 +18,6 @@ import {
     selectBehaviorByPath,
     selectOriginByName,
 } from "./distributions";
-import { constructEventContext } from "./eventContext";
 import { constructViewerRequest } from "./viewerRequest";
 import { constructOriginRequest } from "./originRequest";
 import { constructRequestEvent } from "./requestEvent";
@@ -47,6 +45,7 @@ export class RequestHandler {
     ) {
         (this.id = crypto.randomUUID().replace(/-/g, "")),
             (this.host = incomingMessage.headers["host"]!);
+
         if (!this.host) {
             throw new Error(
                 "Request does not have a 'Host' header, without it we cannot select the distribution",
@@ -149,15 +148,9 @@ export class RequestHandler {
             request,
         );
 
-        const eventContext = constructEventContext(lambda.name, this.id);
-
         try {
-            return await lambda.invokeForRequestEvent(
-                requestEvent,
-                eventContext,
-            );
+            return await lambda.invokeForRequestEvent(this.id, requestEvent);
         } catch (error) {
-            consola.error(error);
             return new RequestEventResult(generateErrorResponse(error));
         }
     }

@@ -6,6 +6,7 @@ import * as https from "https";
 import consola from "consola";
 import { program, Option } from "commander";
 
+import { CloudWatch } from "./cloudWatch";
 import { parseConfig } from "./config";
 import { createRequestListener } from "./requestListener";
 
@@ -55,7 +56,8 @@ export const main = async (args: string[]): Promise<void> => {
         build: options["build"],
     });
 
-    const requestListener = createRequestListener(config);
+    const cloudWatch = new CloudWatch();
+    const requestListener = createRequestListener(config, cloudWatch);
 
     let server = null;
     if (options["httpsKey"] && options["httpsCert"]) {
