@@ -15,6 +15,7 @@ Roughlyfront is a small and mostly correct emulator for AWS Lambda@Edge. It allo
 * Hot rebuilding lambda functions
 * Custom origin headers
 * Custom origin path
+* CloudWatch subscriptions
 * Mocked `CloudFront-Viewer-*` headers
 * Mocked `x-cache` response headers
 * Mocked `x-amz-*` response headers
@@ -83,6 +84,12 @@ headers = { "X-Test" = 1 }
 pattern = "/*"
 origin = "default"
 lambdas = { origin-request = "myedgelambda" }
+
+[[cloudwatch.subscriptions]]
+name = "myfilter"
+pattern = "-START"
+destination = "myedgelambda"
+group = "/aws/lambda/us-east-1.myedgelambda"
 ```
 
 #### Lambda files
