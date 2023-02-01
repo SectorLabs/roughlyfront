@@ -16,7 +16,7 @@ export class CloudWatchLogGroup {
         let stream = prefixedStreams[prefixedStreams.length - 1];
 
         if (!stream) {
-            stream = new CloudWatchLogStream(prefix);
+            stream = new CloudWatchLogStream(this, prefix);
             this.streams.push(stream);
         }
 

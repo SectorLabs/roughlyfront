@@ -1,4 +1,8 @@
 import * as crypto from "crypto";
+import chalk from "chalk";
+import stripAnsi from "strip-ansi";
+
+import type { CloudWatchLogGroup } from "./logGroup";
 
 export class CloudWatchLogStream {
     public id: string;
@@ -11,7 +15,7 @@ export class CloudWatchLogStream {
 
     public messages: string[] = [];
 
-    constructor(prefix: string) {
+    constructor(private group: CloudWatchLogGroup, prefix: string) {
         this.id = crypto.randomUUID().replace(/-/g, "");
         this.prefix = prefix;
         this.moment = new Date();
@@ -24,8 +28,8 @@ export class CloudWatchLogStream {
     }
 
     public log(message: string) {
-        this.messages.push(message);
+        this.messages.push(stripAnsi(message));
 
-        console.log(message);
+        console.log(chalk.cyan(`[${this.group.name}]`), message);
     }
 }

@@ -4,6 +4,7 @@ import * as path from "path";
 import * as util from "util";
 import { Module } from "module";
 import type { Context } from "aws-lambda";
+import chalk from "chalk";
 import consola from "consola";
 
 import type { CloudWatchLogGroup, CloudWatchLogStream } from "../cloudwatch";
@@ -78,7 +79,7 @@ export class LambdaFunction {
             logStream,
         );
 
-        logStream.log(`START RequestId: ${id} ${eventContext.functionVersion}`);
+        this.logStart(logStream, id);
 
         const [result, error] = await this.invokeTryCatch(event, eventContext);
 
@@ -91,10 +92,8 @@ export class LambdaFunction {
         // https://aws.amazon.com/about-aws/whats-new/2020/12/aws-lambda-changes-duration-billing-granularity-from-100ms-to-1ms/
         const billedDuration = Math.ceil(duration);
 
-        logStream.log(`END RequestId: ${id}`);
-        logStream.log(
-            `REPORT RequestId: ${id}\tDuration: ${duration} ms\tBilled Duration: ${billedDuration} ms\tMemory Size: ${eventContext.memoryLimitInMB} MB\tMax Memory Used: ${eventContext.memoryLimitInMB} MB`,
-        );
+        this.logEnd(logStream, id);
+        this.logReport(logStream, id, duration, billedDuration);
 
         if (error) {
             logConsole.error(error);
@@ -197,11 +196,74 @@ export class LambdaFunction {
         level: string,
         logStream: CloudWatchLogStream,
     ): ConsoleFunc {
-        return (...args) => {
-            const prefix = `${new Date().toISOString()}\t${id}\t${level}`;
-            const message = util.format(...args);
-            logStream.log(`${prefix}\t${message}`);
-        };
+        return (...args) =>
+            this.logMessage(logStream, id, level, util.format(...args));
+    }
+
+    private logStart(logStream: CloudWatchLogStream, id: string): void {
+        const coloredIndicator = chalk.green("START");
+        const coloredID = chalk.gray(`RequestId: ${id}`);
+        const coloredVersion = chalk.gray(this.version);
+
+        logStream.log(`${coloredIndicator} ${coloredID} ${coloredVersion}`);
+    }
+
+    private logEnd(logStream: CloudWatchLogStream, id: string): void {
+        const coloredIndicator = chalk.red("START");
+        const coloredID = chalk.gray(`RequestId: ${id}`);
+
+        logStream.log(`${coloredIndicator} ${coloredID}`);
+    }
+
+    private logReport(
+        logStream: CloudWatchLogStream,
+        id: string,
+        duration: number,
+        billedDuration: number,
+    ): void {
+        const coloredIndicator = chalk.yellow("START");
+        const coloredID = chalk.gray(`RequestId: ${id}`);
+        const coloredDuration = chalk.gray(`Duration: ${duration} ms`);
+        const coloredBilledDuration = chalk.gray(
+            `Billed Duration: ${billedDuration} ms`,
+        );
+        const coloredMemorySize = chalk.gray(`Memory Size: 128 MB`);
+        const coloredMemoryUsage = chalk.gray(`Max Memory Used: 128 MB`);
+
+        logStream.log(
+            `${coloredIndicator} ${coloredID}\t${coloredDuration}\t${coloredBilledDuration}\t${coloredMemorySize}\t${coloredMemoryUsage}`,
+        );
+    }
+
+    private logMessage(
+        logStream: CloudWatchLogStream,
+        id: string,
+        level: string,
+        message: string,
+    ): void {
+        const coloredTimestamp = chalk.gray(new Date().toISOString());
+        const coloredID = chalk.gray(id);
+        const coloredLevel = this.coloredLevel(level);
+
+        logStream.log(
+            `${coloredTimestamp}\t${coloredID}\t${coloredLevel}\t${message}`,
+        );
+    }
+
+    private coloredLevel(level: string): string {
+        switch (level) {
+            case "INFO":
+                return chalk.green(level);
+
+            case "WARN":
+                return chalk.yellow(level);
+
+            case "ERROR":
+                return chalk.red(level);
+
+            default:
+                return level;
+        }
     }
 
     private constructEventEnv(
