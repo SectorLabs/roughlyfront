@@ -92,8 +92,21 @@ destination = "myedgelambda"
 group = "/aws/lambda/us-east-1.myedgelambda"
 ```
 
-#### Lambda files
-The path to your Lambda function's entrypoint file is always relative to the location of the config file. _Not_ to the current working directory.
+#### Configuring Lambda functions
+Roughlyfront supports configuring multiple Node.js Lambda functions that can be associated with CloudFront behaviors or CloudWatch subscriptions. Roughlyfront uses the same Node.js version as Roughlyfront itself is running with.
+
+Lambda functions automatically hot-reload whenever Roughlyfront detects the specified `file` has been modified. The `file` path is always relative to the directory in which the Roughlyfront config file is located. Not the current working directory.
+
+The `version` is optional. It has no real importance. It is passed to your function through the `context` and the `AWS_LAMBDA_FUNCTION_VERSION` environment variable. The default, if no version is specified, is `1`.
+
+#### Building Lambda functions
+If your Lambda function is built in TypeScript or requires a compilation/transpilation/build process, you can configure Roughlyfront to automatically build your function whenever you make changes to the code.
+
+This functionality is entirely optional. If you want to manage the build process yourself or don't require a build process you can leave out this section entirely.
+
+A single build set up can be responsible for building one or multiple Lambda functions. The Lambda functions will be reloaded when the build output changes.
+
+Use the `watch` property to specify what directories and files Roughlyfront should watch. Directories are watched recursively and the build triggers when files are added/removed.
 
 #### Multiple distributions
 Roughlyfront allows you to configure multiple distributions. It matches requests against the distribution by inspecting the value of `Host` header. Set the distribution's `domains` property to match the `Host` header you pass.
@@ -109,3 +122,6 @@ If you don't want multiple distributions or custom domain names, set the `domain
 
 #### Behaviors without lambda
 The `lambdas` property on a behavior is optional. If none is specified, the request is always forwarded to the origin.
+
+#### CloudWatch subscriptions
+All logs from the Lambda functions are forwarded to emulated CloudWatch log groups. These are the same logs that the console displays. Adding CloudWatch subscriptions is optional.
