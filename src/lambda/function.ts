@@ -24,6 +24,7 @@ type ConsoleFunc = (...args: unknown[]) => void;
 
 interface Console {
     log: ConsoleFunc;
+    debug: ConsoleFunc;
     info: ConsoleFunc;
     warn: ConsoleFunc;
     error: ConsoleFunc;
@@ -185,6 +186,7 @@ export class LambdaFunction {
         // but this is easier, especially for multi-line logs.
         return {
             log: this.createConsoleFunc(id, "INFO", logStream),
+            debug: this.createConsoleFunc(id, "DEBUG", logStream),
             info: this.createConsoleFunc(id, "INFO", logStream),
             warn: this.createConsoleFunc(id, "WARN", logStream),
             error: this.createConsoleFunc(id, "ERROR", logStream),
