@@ -209,7 +209,7 @@ export class LambdaFunction {
     }
 
     private logEnd(logStream: CloudWatchLogStream, id: string): void {
-        const coloredIndicator = chalk.red("START");
+        const coloredIndicator = chalk.red("END");
         const coloredID = chalk.gray(`RequestId: ${id}`);
 
         logStream.log(`${coloredIndicator} ${coloredID}`);
@@ -221,7 +221,7 @@ export class LambdaFunction {
         duration: number,
         billedDuration: number,
     ): void {
-        const coloredIndicator = chalk.yellow("START");
+        const coloredIndicator = chalk.yellow("REPORT");
         const coloredID = chalk.gray(`RequestId: ${id}`);
         const coloredDuration = chalk.gray(`Duration: ${duration} ms`);
         const coloredBilledDuration = chalk.gray(
