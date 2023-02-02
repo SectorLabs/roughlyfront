@@ -107,7 +107,7 @@ export class CloudFrontRequestHandler {
         );
         if (originResult.isResponse()) {
             writeOriginResponse(
-                viewerResult.asResponse(),
+                originResult.asResponse(),
                 this.outgoingMessage,
                 {
                     id: this.id,
