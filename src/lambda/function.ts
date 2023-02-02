@@ -7,6 +7,7 @@ import type { Context } from "aws-lambda";
 import chalk from "chalk";
 import consola from "consola";
 
+import { performanceNow } from "../time";
 import type { CloudWatchLogGroup, CloudWatchLogStream } from "../cloudwatch";
 import { AWS_REGION, AWS_ACCOUNT_ID } from "../constants";
 
@@ -73,7 +74,7 @@ export class LambdaFunction {
         this.patchEnv(logStream);
         this.patchConsole(logConsole);
 
-        const startTime = performance.now();
+        const startTime = performanceNow();
         const eventContext = this.constructEventContext(
             id,
             startTime,
@@ -84,7 +85,7 @@ export class LambdaFunction {
 
         const [result, error] = await this.invokeTryCatch(event, eventContext);
 
-        const endTime = performance.now();
+        const endTime = performanceNow();
 
         // CloudWatch logs show duration accurate to two decimals
         const duration = Math.round((endTime - startTime) * 100) / 100;
@@ -311,7 +312,7 @@ export class LambdaFunction {
             logStreamName: logStream.name,
 
             getRemainingTimeInMillis: () =>
-                startTime + AWS_LAMBDA_TIME_LIMIT_MS - performance.now(),
+                startTime + AWS_LAMBDA_TIME_LIMIT_MS - performanceNow(),
 
             // DEPRECATED, but we have to add them to comply with the `Context` type
             /* eslint-disable @typescript-eslint/no-unused-vars */
