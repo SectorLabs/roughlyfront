@@ -41,7 +41,7 @@ export class LambdaFunction {
 
     private handler: LambdaHandler | null = null;
     private context: vm.Context | null = null;
-    private importCache: Map<string, vm.SyntheticModule> = new Map();
+    private cachedModules: Map<string, vm.SyntheticModule> = new Map();
 
     constructor(
         name: string,
@@ -199,9 +199,13 @@ export class LambdaFunction {
             },
         });
 
+        // Do not re-use the cache between runs, otherwise we get:
+        // [ERR_VM_MODULE_DIFFERENT_CONTEXT]: Linked modules must use the same context
+        this.cachedModules.clear();
+
         // Adopted from: https://github.com/nodejs/node/issues/35848#issuecomment-1024964697
         await script.link(async (specifier, referencingModule) => {
-            const cachedModule = this.importCache.get(specifier);
+            const cachedModule = this.cachedModules.get(specifier);
             if (cachedModule) {
                 return cachedModule;
             }
@@ -219,7 +223,7 @@ export class LambdaFunction {
                 { identifier: specifier, context: referencingModule.context },
             );
 
-            this.importCache.set(specifier, synthenticModule);
+            this.cachedModules.set(specifier, synthenticModule);
             return synthenticModule;
         });
 
