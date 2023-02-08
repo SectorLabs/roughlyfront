@@ -51,7 +51,7 @@ export class CloudWatchListener {
             return;
         }
 
-        const lambda = this.lambdaRegistry.get(subscription.destination);
+        const lambda = await this.lambdaRegistry.get(subscription.destination);
 
         const eventData: CloudWatchLogsDecodedData = {
             owner: AWS_ACCOUNT_ID.toString(),

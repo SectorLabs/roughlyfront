@@ -133,7 +133,7 @@ export class CloudFrontRequestHandler {
         eventType: CloudFrontEventType,
         request: CloudFrontRequest,
     ): Promise<CloudFrontRequestEventResult> {
-        const lambda = this.selectLambdaForEvent(eventType);
+        const lambda = await this.selectLambdaForEvent(eventType);
         if (!lambda) {
             return new CloudFrontRequestEventResult(request);
         }
@@ -167,9 +167,9 @@ export class CloudFrontRequestHandler {
         }
     }
 
-    private selectLambdaForEvent(
+    private async selectLambdaForEvent(
         eventType: CloudFrontEventType,
-    ): LambdaFunction | null {
+    ): Promise<LambdaFunction | null> {
         const lambdaName = this.behavior.lambdas?.[eventType];
         if (!lambdaName) {
             return null;

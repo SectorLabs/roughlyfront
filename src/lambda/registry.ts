@@ -12,14 +12,14 @@ import type { LambdaBuildConfig, LambdaFunctionConfig } from "./types";
 export class LambdaRegistry {
     constructor(private functions: LambdaFunction[]) {}
 
-    public get(name: string) {
+    public async get(name: string) {
         const func = this.functions.find((func) => func.name === name);
         if (!func) {
             throw new Error(`No function named '${name}' declared`);
         }
 
         if (!func.wasEvaluated()) {
-            func.evaluate();
+            await func.evaluate();
         }
 
         return func;
