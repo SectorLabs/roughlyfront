@@ -184,7 +184,7 @@ export class LambdaFunction {
     ): Promise<Record<string, LambdaHandler>> {
         if (!vm.SourceTextModule) {
             throw new Error(
-                "ESM/Modules support requires running node with the '--experimental-modules-flag'.",
+                "ESM/Modules support requires running node with the '--experimental-vm-modules' flag.",
             );
         }
 
