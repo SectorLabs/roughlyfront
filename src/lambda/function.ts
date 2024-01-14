@@ -1,9 +1,5 @@
-import * as vm from "vm";
-import * as fs from "fs";
 import * as path from "path";
 import * as util from "util";
-import { Module } from "module";
-import findUp from "find-up";
 import type { Context } from "aws-lambda";
 import chalk from "chalk";
 import consola from "consola";
@@ -12,25 +8,17 @@ import { performanceNow } from "../time";
 import type { CloudWatchLogGroup, CloudWatchLogStream } from "../cloudwatch";
 import { AWS_REGION, AWS_ACCOUNT_ID } from "../constants";
 
+import { LambdaEvaluator } from "./evaluator";
 import {
     AWS_LAMBDA_FUNCTION_MEMORY_SIZE,
     AWS_LAMBDA_TIME_LIMIT_MS,
 } from "./constants";
+import type { Console, ConsoleFunc } from "./types";
 
 export type LambdaHandler = (
     event: unknown,
     context: Context,
 ) => Promise<unknown>;
-
-type ConsoleFunc = (...args: unknown[]) => void;
-
-interface Console {
-    log: ConsoleFunc;
-    debug: ConsoleFunc;
-    info: ConsoleFunc;
-    warn: ConsoleFunc;
-    error: ConsoleFunc;
-}
 
 export class LambdaFunction {
     public name: string;
@@ -40,8 +28,7 @@ export class LambdaFunction {
     private logGroup: CloudWatchLogGroup;
 
     private handler: LambdaHandler | null = null;
-    private context: vm.Context | null = null;
-    private cachedModules: Map<string, vm.SyntheticModule> = new Map();
+    private evaluator: LambdaEvaluator;
 
     constructor(
         name: string,
@@ -57,24 +44,22 @@ export class LambdaFunction {
         this.logGroup = logGroup;
 
         this.handler = null;
-        this.context = null;
+        this.evaluator = new LambdaEvaluator(filePath);
     }
 
     public async invoke<TEvent, TResult>(
         id: string,
         event: TEvent,
     ): Promise<TResult> {
-        if (!this.wasEvaluated()) {
-            await this.evaluate();
-        }
+        await this.evaluate();
 
         const logStream = this.logGroup.stream(this.version.toString());
         const logConsole = this.createConsole(id, logStream);
 
         // Mutates the config and leaks into the next invocation,
         // but that is how AWS Lambda works so we're not fixing it.
-        this.patchEnv(logStream);
-        this.patchConsole(logConsole);
+        this.evaluator.patchEnv(this.constructEventEnv(logStream));
+        this.evaluator.patchConsole(logConsole);
 
         const startTime = performanceNow();
         const eventContext = this.constructEventContext(
@@ -107,16 +92,12 @@ export class LambdaFunction {
         return result as TResult;
     }
 
-    public wasEvaluated(): boolean {
-        return !!this.handler && !!this.context;
-    }
-
     public async evaluate(): Promise<void> {
-        const context = this.initializeContext();
+        if (this.handler) {
+            return;
+        }
 
-        const exports = (await this.isESM())
-            ? await this.evaluateESM(context)
-            : this.evaluateCJS(context);
+        const exports = await this.evaluator.evaluate();
 
         const handler = exports[this.handlerName];
         if (!handler) {
@@ -130,127 +111,8 @@ export class LambdaFunction {
         this.handler = handler as LambdaHandler;
     }
 
-    private async isESM(): Promise<boolean> {
-        if (this.filePath.endsWith(".mjs")) {
-            return true;
-        }
-
-        if (this.filePath.endsWith(".cjs")) {
-            return false;
-        }
-
-        const closestPackageJSONFilePath = await findUp("package.json", {
-            type: "file",
-            cwd: path.dirname(this.filePath),
-        });
-
-        if (
-            closestPackageJSONFilePath &&
-            fs.existsSync(closestPackageJSONFilePath)
-        ) {
-            const packageJSON = JSON.parse(
-                fs.readFileSync(closestPackageJSONFilePath, "utf8"),
-            );
-            return packageJSON.type === "module";
-        }
-
-        throw new Error(
-            `Could not determine whether '${this.filePath}' is a CommonJS or ESM module. Change the file extension to '.mjs' or '.cjs'`,
-        );
-    }
-
-    private evaluateCJS(context: vm.Context): Record<string, LambdaHandler> {
-        const src = fs.readFileSync(this.filePath, "utf8");
-
-        const script = new vm.Script(Module.wrap(src), {
-            filename: this.filePath,
-        });
-
-        const scriptExports: Record<string, LambdaHandler> = {};
-
-        script.runInNewContext(context)(
-            scriptExports,
-            Module.createRequire(this.filePath),
-            module,
-            this.filePath,
-            path.dirname(this.filePath),
-        );
-
-        return scriptExports;
-    }
-
-    private async evaluateESM(
-        context: vm.Context,
-    ): Promise<Record<string, LambdaHandler>> {
-        if (!vm.SourceTextModule) {
-            throw new Error(
-                "ESM/Modules support requires running node with the '--experimental-vm-modules' flag.",
-            );
-        }
-
-        const src = fs.readFileSync(this.filePath, "utf8");
-
-        const script = new vm.SourceTextModule(src, {
-            identifier: this.filePath,
-            context,
-            initializeImportMeta: (meta) => {
-                // Without this, `import.meta.url` doesn't work properly
-                meta.url = `file:///${this.filePath}`;
-            },
-        });
-
-        // Do not re-use the cache between runs, otherwise we get:
-        // [ERR_VM_MODULE_DIFFERENT_CONTEXT]: Linked modules must use the same context
-        this.cachedModules.clear();
-
-        // Adopted from: https://github.com/nodejs/node/issues/35848#issuecomment-1024964697
-        await script.link(async (specifier, referencingModule) => {
-            const cachedModule = this.cachedModules.get(specifier);
-            if (cachedModule) {
-                return cachedModule;
-            }
-
-            const rawModule = await import(specifier);
-            const exportedNames = Object.keys(rawModule);
-
-            const synthenticModule = new vm.SyntheticModule(
-                exportedNames,
-                () => {
-                    exportedNames.forEach((name) => {
-                        synthenticModule.setExport(name, rawModule[name]);
-                    });
-                },
-                { identifier: specifier, context: referencingModule.context },
-            );
-
-            this.cachedModules.set(specifier, synthenticModule);
-            return synthenticModule;
-        });
-
-        await script.evaluate();
-
-        return script.namespace as Record<string, LambdaHandler>;
-    }
-
-    private initializeContext(): vm.Context {
-        // Inherit the context from this process. Most properties of `global`
-        // are not iterable, hence we use `getOwnPropertyNames` instead of
-        // just spreading the object.
-        this.context = vm.createContext();
-        Object.getOwnPropertyNames(global).forEach((name) => {
-            const descriptor = Object.getOwnPropertyDescriptor(global, name);
-            if (!descriptor) {
-                return;
-            }
-
-            Object.defineProperty(this.context, name, descriptor);
-        });
-
-        // Create circular reference that is expected. You get really
-        // strange issues if this circular reference doesn't exists.
-        this.context["global"] = this.context;
-
-        return this.context;
+    public wasEvaluated(): boolean {
+        return !!this.handler;
     }
 
     private async invokeTryCatch(
@@ -263,19 +125,6 @@ export class LambdaFunction {
         } catch (e) {
             return [null, e as Error];
         }
-    }
-
-    private patchEnv(logStream: CloudWatchLogStream): void {
-        this.context!["process"]["env"] = {
-            ...this.context!["process"]["env"],
-            ...this.constructEventEnv(logStream),
-        };
-    }
-    private patchConsole(console: Console): void {
-        this.context!["console"] = {
-            ...this.context!["console"],
-            ...console,
-        };
     }
 
     private createConsole(id: string, logStream: CloudWatchLogStream): Console {

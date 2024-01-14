@@ -9,7 +9,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { main } = require("./dist/main.js");
+const { main } = require("./dist/eval.js");
 
 (async () => {
     await main(process.argv);

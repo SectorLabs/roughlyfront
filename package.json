@@ -25,7 +25,8 @@
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "bin": {
-        "roughlyfront": "./cli.js"
+        "roughlyfront": "./cli-main.js",
+        "roughlyfront-eval": "./cli-eval.js"
     },
     "files": [
         "dist/*",
