@@ -285,6 +285,7 @@ export class LambdaFunction {
         // but this is easier, especially for multi-line logs.
         return {
             log: this.createConsoleFunc(id, "INFO", logStream),
+            trace: this.createConsoleFunc(id, "TRACE", logStream),
             debug: this.createConsoleFunc(id, "DEBUG", logStream),
             info: this.createConsoleFunc(id, "INFO", logStream),
             warn: this.createConsoleFunc(id, "WARN", logStream),
