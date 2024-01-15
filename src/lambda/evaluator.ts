@@ -150,7 +150,9 @@ export class LambdaEvaluator {
                 return;
             }
 
-            Object.defineProperty(this.context, name, descriptor);
+            if (name !== "Object") {
+                Object.defineProperty(this.context, name, descriptor);
+            }
         });
 
         // Create circular reference that is expected. You get really
