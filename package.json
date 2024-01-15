@@ -30,7 +30,8 @@
     },
     "files": [
         "dist/*",
-        "cli.js"
+        "cli-main.js",
+        "cli-eval.js"
     ],
     "scripts": {
         "build": "tsc",
