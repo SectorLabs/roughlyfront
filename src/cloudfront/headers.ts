@@ -1,4 +1,5 @@
 import type * as http from "http";
+import { Headers } from "headers-polyfill";
 
 import type { CloudFrontHeaders } from "aws-lambda";
 

@@ -52,6 +52,7 @@
         "consola": "^2.15.3",
         "fb-watchman": "^2.0.2",
         "find-up": "^5.0.0",
+        "headers-polyfill": "^4.0.3",
         "outmatch": "^0.7.0",
         "strip-ansi": "^6.0.1",
         "toml": "^3.0.0"
@@ -64,7 +65,7 @@
         "@typescript-eslint/parser": "^8.39.0",
         "eslint": "^8.57.0",
         "prettier": "^3.6.2",
-        "sort-package-json": "^3.4.0",
+        "sort-package-json": "3.3.0",
         "typescript": "^5.9.2"
     },
     "engines": {
