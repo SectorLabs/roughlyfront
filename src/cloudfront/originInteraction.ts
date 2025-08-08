@@ -3,8 +3,6 @@ import type {
     CloudFrontCustomOrigin,
     CloudFrontResultResponse,
 } from "aws-lambda";
-import fetch from "node-fetch-commonjs";
-import type { Response } from "node-fetch-commonjs";
 
 import {
     parseCloudFrontHeaders,
