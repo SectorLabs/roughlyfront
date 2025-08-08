@@ -15,7 +15,10 @@ export class CloudWatchLogStream {
 
     public messages: string[] = [];
 
-    constructor(private group: CloudWatchLogGroup, prefix: string) {
+    constructor(
+        private group: CloudWatchLogGroup,
+        prefix: string,
+    ) {
         this.id = crypto.randomUUID().replace(/-/g, "");
         this.prefix = prefix;
         this.moment = new Date();

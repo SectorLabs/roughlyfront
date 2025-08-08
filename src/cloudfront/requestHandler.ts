@@ -48,8 +48,8 @@ export class CloudFrontRequestHandler {
         private incomingMessage: http.IncomingMessage,
         private outgoingMessage: http.ServerResponse,
     ) {
-        (this.id = crypto.randomUUID().replace(/-/g, "")),
-            (this.host = incomingMessage.headers["host"]!);
+        this.id = crypto.randomUUID().replace(/-/g, "");
+        this.host = incomingMessage.headers["host"]!;
 
         if (!this.host) {
             throw new Error(

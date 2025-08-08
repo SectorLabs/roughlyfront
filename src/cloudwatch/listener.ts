@@ -76,7 +76,7 @@ export class CloudWatchListener {
 
         try {
             await lambda.invoke(crypto.randomUUID().replace(/-/g, ""), event);
-        } catch (e) {}
+        } catch (_e) {}
     }
 
     private filterMessages(messages: string[], pattern?: string): string[] {
