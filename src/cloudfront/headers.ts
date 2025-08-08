@@ -1,7 +1,6 @@
 import type * as http from "http";
 
 import type { CloudFrontHeaders } from "aws-lambda";
-import { Headers } from "node-fetch-commonjs";
 
 export const parseIncomingMessageHeaders = (
     incomingMessage: http.IncomingMessage,
