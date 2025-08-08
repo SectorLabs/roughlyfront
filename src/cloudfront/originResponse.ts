@@ -38,6 +38,16 @@ const writeHeaders = (
     headers.set("via", `1.1 ${options.host} (CloudFront)`);
 
     Array.from(headers.entries()).forEach(([name, value]) => {
+        // Set-Cookie is the only header that should not be merged and
+        // can appear multiple times. Most browsers choke on merged
+        // Set-Cookie headers.
+        if (name.toLowerCase() === "set-cookie") {
+            headers.getSetCookie().forEach((cookie) => {
+                outgoingMessage.appendHeader(name, cookie);
+            });
+            return;
+        }
+
         outgoingMessage.setHeader(name, value);
     });
 };

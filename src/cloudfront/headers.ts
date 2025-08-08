@@ -37,14 +37,31 @@ export const parseCloudFrontHeaders = (
 export const parseFetchHeaders = (headers: Record<string, string>): Headers =>
     new Headers(Object.entries(headers));
 
-export const asCloudFrontHeaders = (headers: Headers): CloudFrontHeaders =>
-    Array.from(headers.entries()).reduce(
-        (acc, [name, value]) => ({
-            ...acc,
-            [name]: [{ key: name, value }],
-        }),
+export const asCloudFrontHeaders = (headers: Headers): CloudFrontHeaders => {
+    const cfHeaders = Array.from(headers.entries()).reduce(
+        (acc, [name, value]) => {
+            // Set-Cookie is the only header that should not be merged and
+            // can appear multiple times. Most browsers choke on merged
+            // Set-Cookie headers.
+            if (name.toLowerCase() === "set-cookie") {
+                return {
+                    ...acc,
+                    [name]: headers
+                        .getSetCookie()
+                        .map((cookie) => ({ key: name, value: cookie })),
+                };
+            }
+
+            return {
+                ...acc,
+                [name]: [{ key: name, value }],
+            };
+        },
         {},
     ) as CloudFrontHeaders;
+
+    return cfHeaders;
+};
 
 export const asFetchHeaders = (headers: Headers): Record<string, string> =>
     Array.from(headers.entries()).reduce(
