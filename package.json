@@ -38,9 +38,9 @@
         "build:dev": "tsc --watch",
         "fix": "npm run format && npm run lint:fix",
         "format": "npm run format:code && npm run format:packagejson",
-        "format:code": "prettier --write './**/*.{js,ts,json}' --write './.eslintrc'",
+        "format:code": "prettier --write './**/*.{js,ts,json}' --write",
         "format:packagejson": "sort-package-json ./package.json",
-        "format:verify": "prettier --check './**/*.{js,ts,json}' --check './.eslintrc'",
+        "format:verify": "prettier --check './**/*.{js,ts,json}' --check",
         "lint": "eslint --max-warnings=0 --ext .js --ext .ts --color .",
         "lint:fix": "npm run lint -- --fix",
         "verify": "npm run format:verify && npm run lint"
@@ -57,14 +57,14 @@
         "toml": "^3.0.0"
     },
     "devDependencies": {
-        "@tsconfig/node18-strictest": "^1.0.0",
-        "@types/aws-lambda": "^8.10.109",
+        "@types/aws-lambda": "^8.10.152",
         "@types/fb-watchman": "^2.0.1",
         "@types/node": "^18.19.121",
-        "@typescript-eslint/eslint-plugin": "^5.48.0",
-        "@typescript-eslint/parser": "^5.48.0",
-        "prettier": "^2.8.1",
-        "sort-package-json": "^2.1.0",
+        "@typescript-eslint/eslint-plugin": "^8.39.0",
+        "@typescript-eslint/parser": "^8.39.0",
+        "eslint": "^8.57.0",
+        "prettier": "^3.6.2",
+        "sort-package-json": "^3.4.0",
         "typescript": "^5.9.2"
     },
     "engines": {

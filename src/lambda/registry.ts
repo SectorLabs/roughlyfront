@@ -130,7 +130,7 @@ export class LambdaRegistry {
         // fix the error and another rebuild will occur.
         try {
             child_process.execSync(command, { stdio: "inherit" });
-        } catch (error) {}
+        } catch (_e) {}
     }
 
     private static makePathAbsolute(value: string, directory: string): string {
