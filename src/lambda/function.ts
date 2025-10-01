@@ -15,9 +15,15 @@ import {
 } from "./constants";
 import type { Console, ConsoleFunc } from "./types";
 
+export type LambdaCallback = (
+    error: Error | null,
+    result: unknown | null,
+) => void;
+
 export type LambdaHandler = (
     event: unknown,
     context: Context,
+    callback?: LambdaCallback,
 ) => Promise<unknown>;
 
 export class LambdaFunction {
@@ -118,13 +124,20 @@ export class LambdaFunction {
     private async invokeTryCatch(
         event: unknown,
         eventContext: Context,
-    ): Promise<[unknown, null] | [null, Error]> {
-        try {
-            const result = await this.handler!(event, eventContext);
-            return [result, null];
-        } catch (e) {
-            return [null, e as Error];
-        }
+    ): Promise<[null | unknown, Error | null]> {
+        return new Promise((resolve) => {
+            const callback = (error: Error | null, result: unknown | null) =>
+                resolve([result, error]);
+
+            try {
+                const result = this.handler!(event, eventContext, callback);
+                if (result?.then) {
+                    result.then((result) => resolve([result, null]));
+                }
+            } catch (e) {
+                resolve([null, e as Error]);
+            }
+        });
     }
 
     private createConsole(id: string, logStream: CloudWatchLogStream): Console {
