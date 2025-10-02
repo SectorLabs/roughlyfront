@@ -3,6 +3,9 @@ import type {
     CloudFrontCustomOrigin,
     CloudFrontResultResponse,
 } from "aws-lambda";
+import http from "node:http";
+import https from "node:https";
+import { Headers } from "headers-polyfill";
 
 import {
     parseCloudFrontHeaders,
@@ -37,11 +40,6 @@ const constructRequestBody = (
         : null;
 };
 
-const constructResponseBody = async (response: Response): Promise<string> => {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return buffer.toString("base64");
-};
-
 export const makeOriginRequest = async (
     originRequest: CloudFrontRequest,
 ): Promise<CloudFrontResultResponse> => {
@@ -49,28 +47,54 @@ export const makeOriginRequest = async (
         throw new Error("Cannot figure out what origin to forward request to");
     }
 
-    const response = await fetch(
-        constructRequestURL(originRequest, originRequest.origin.custom),
-        {
-            method: originRequest.method,
-            headers: asFetchHeaders(
-                mergeHeaders(
-                    parseCloudFrontHeaders(originRequest.headers),
-                    parseCloudFrontHeaders(
-                        originRequest.origin.custom.customHeaders,
-                    ),
-                ),
-            ),
-            body: constructRequestBody(originRequest),
-            redirect: "manual",
-        },
+    const headers = mergeHeaders(
+        parseCloudFrontHeaders(originRequest.headers),
+        parseCloudFrontHeaders(originRequest.origin.custom.customHeaders),
     );
 
-    return {
-        status: response.status.toString(),
-        statusDescription: response.statusText,
-        headers: asCloudFrontHeaders(response.headers),
-        body: await constructResponseBody(response),
-        bodyEncoding: "base64",
-    };
+    const requestURL = constructRequestURL(
+        originRequest,
+        originRequest.origin.custom,
+    );
+
+    // Do not switch this to `fetch(..)`. It doesn't allow for overriding
+    // the `Host` header.
+    return new Promise((resolve, reject) => {
+        const client = requestURL.startsWith("https") ? https : http;
+
+        const request = client.request(
+            requestURL,
+            {
+                method: originRequest.method,
+                headers: asFetchHeaders(headers),
+            },
+            (response) => {
+                const chunks: Buffer[] = [];
+                response.on("data", (chunk) => {
+                    chunks.push(chunk);
+                });
+
+                response.on("error", reject);
+
+                response.on("end", () => {
+                    resolve({
+                        status: response.statusCode!.toString(),
+                        statusDescription: response.statusMessage,
+                        headers: asCloudFrontHeaders(
+                            new Headers(response.headers),
+                        ),
+                        body: Buffer.concat(chunks).toString("base64"),
+                        bodyEncoding: "base64",
+                    });
+                });
+            },
+        );
+
+        const requestBody = constructRequestBody(originRequest);
+        if (requestBody) {
+            request.write(requestBody);
+        }
+
+        request.end();
+    });
 };
