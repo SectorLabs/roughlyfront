@@ -57,6 +57,8 @@ export const writeOriginResponse = (
     outgoingMessage: http.ServerResponse,
     options: Options,
 ): void => {
+    outgoingMessage.statusCode = Number(originResponse.status);
+
     writeHeaders(originResponse, outgoingMessage, options);
 
     // TODO: this seems to always use Transfer-Encoding: chunked
@@ -71,6 +73,5 @@ export const writeOriginResponse = (
         );
     }
 
-    outgoingMessage.statusCode = Number(originResponse.status);
     outgoingMessage.end();
 };
