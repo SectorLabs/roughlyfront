@@ -3,8 +3,10 @@ import type {
     CloudFrontCustomOrigin,
     CloudFrontResultResponse,
 } from "aws-lambda";
+import zlib from "node:zlib";
 import http from "node:http";
 import https from "node:https";
+import type { Stream } from "node:stream";
 import { Headers } from "headers-polyfill";
 
 import {
@@ -40,6 +42,28 @@ const constructRequestBody = (
         : null;
 };
 
+const createResponseStream = (response: http.IncomingMessage): Stream => {
+    const encoding = response.headers["content-encoding"];
+    if (!encoding) {
+        return response;
+    }
+
+    switch (encoding) {
+        case "gzip":
+            return response.pipe(zlib.createGunzip());
+
+        case "deflate":
+            return response.pipe(zlib.createInflateRaw());
+
+        case "br":
+            return response.pipe(zlib.createBrotliDecompress());
+    }
+
+    throw new Error(
+        `Origin returned a content-encoding we do not handle: ${encoding}`,
+    );
+};
+
 export const makeOriginRequest = async (
     originRequest: CloudFrontRequest,
 ): Promise<CloudFrontResultResponse> => {
@@ -51,6 +75,10 @@ export const makeOriginRequest = async (
         parseCloudFrontHeaders(originRequest.headers),
         parseCloudFrontHeaders(originRequest.origin.custom.customHeaders),
     );
+
+    // Ensure the origin doesn't return an encoding
+    // we cannot handle.
+    headers.set("Accept-Encoding", "gzip, deflate, br");
 
     const requestURL = constructRequestURL(
         originRequest,
@@ -69,14 +97,18 @@ export const makeOriginRequest = async (
                 headers: asFetchHeaders(headers),
             },
             (response) => {
+                const stream = createResponseStream(response);
+
                 const chunks: Buffer[] = [];
-                response.on("data", (chunk) => {
+                stream.on("data", (chunk) => {
                     chunks.push(chunk);
                 });
 
-                response.on("error", reject);
+                stream.on("error", (e) => {
+                    reject(new Error("Origin response error", { cause: e }));
+                });
 
-                response.on("end", () => {
+                stream.on("end", () => {
                     resolve({
                         status: response.statusCode!.toString(),
                         statusDescription: response.statusMessage,
@@ -89,6 +121,10 @@ export const makeOriginRequest = async (
                 });
             },
         );
+
+        request.on("error", (e) => {
+            reject(new Error("Origin response error", { cause: e }));
+        });
 
         const requestBody = constructRequestBody(originRequest);
         if (requestBody) {
