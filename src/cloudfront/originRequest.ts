@@ -31,6 +31,8 @@ const constructHeaders = (
     headers.set("CloudFront-Viewer-Postal-Code", viewer.postalCode);
     headers.set("CloudFront-Viewer-Time-Zone", viewer.timeZone);
     headers.set("CloudFront-Viewer-Http-Version", viewer.httpVersion);
+    headers.set("CloudFront-Viewer-JA3-Fingerprint", viewer.ja3Fingerprint);
+    headers.set("CloudFront-Viewer-JA4-Fingerprint", viewer.ja4Fingerprint);
     headers.set("CloudFront-Forwarded-Proto", viewer.httpProtocol);
     headers.set(
         "X-Forwarded-For",

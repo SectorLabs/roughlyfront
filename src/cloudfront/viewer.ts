@@ -18,6 +18,8 @@ export interface CloudFrontViewer {
     httpVersion: string;
     httpHost: string;
     httpProtocol: string;
+    ja3Fingerprint: string;
+    ja4Fingerprint: string;
 }
 
 export const constructViewer = (
@@ -53,5 +55,7 @@ export const constructViewer = (
             incomingMessage.connection.encrypted
                 ? "https"
                 : "http",
+        ja3Fingerprint: "09db96991d70d43cc265f330a449fc1d",
+        ja4Fingerprint: "t13d1514h2_8daaf6152771_9a55b862dad6",
     };
 };
