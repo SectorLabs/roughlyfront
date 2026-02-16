@@ -39,27 +39,25 @@ export const parseFetchHeaders = (headers: Record<string, string>): Headers =>
     new Headers(Object.entries(headers));
 
 export const asCloudFrontHeaders = (headers: Headers): CloudFrontHeaders => {
-    const cfHeaders = Array.from(headers.entries()).reduce(
-        (acc, [name, value]) => {
-            // Set-Cookie is the only header that should not be merged and
-            // can appear multiple times. Most browsers choke on merged
-            // Set-Cookie headers.
-            if (name.toLowerCase() === "set-cookie") {
-                return {
-                    ...acc,
-                    [name]: headers
-                        .getSetCookie()
-                        .map((cookie) => ({ key: name, value: cookie })),
-                };
-            }
+    const cfHeaders: CloudFrontHeaders = {};
 
-            return {
-                ...acc,
-                [name]: [{ key: name, value }],
-            };
-        },
-        {},
-    ) as CloudFrontHeaders;
+    // Set-Cookie is the only header that should not be merged and
+    // can appear multiple times. Most browsers choke on merged
+    // Set-Cookie headers.
+    headers.getSetCookie().forEach((cookie) => {
+        cfHeaders["set-cookie"] = [
+            ...(cfHeaders["set-cookie"] || []),
+            { key: "set-cookie", value: cookie },
+        ];
+    });
+
+    Array.from(headers.entries()).forEach(([name, value]) => {
+        if (name.toLowerCase() === "set-cookie") {
+            return;
+        }
+
+        cfHeaders[name] = [{ key: name, value }];
+    });
 
     return cfHeaders;
 };
