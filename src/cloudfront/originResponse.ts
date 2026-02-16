@@ -69,6 +69,8 @@ export const writeOriginResponse = (
                 originResponse.bodyEncoding === "base64" ? "base64" : undefined,
             ),
         );
+    } else {
+        outgoingMessage.setHeader("content-length", "0");
     }
 
     outgoingMessage.end();
