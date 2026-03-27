@@ -99,10 +99,6 @@ export class LambdaFunction {
     }
 
     public async evaluate(): Promise<void> {
-        if (this.handler) {
-            return;
-        }
-
         const exports = await this.evaluator.evaluate();
 
         const handler = exports[this.handlerName];
