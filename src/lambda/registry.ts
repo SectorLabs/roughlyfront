@@ -102,7 +102,7 @@ export class LambdaRegistry {
                             (func) => func.name === functionName,
                         );
                         if (func) {
-                            func.evaluate();
+                            func.reload();
                         }
                     },
                 );

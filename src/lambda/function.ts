@@ -34,6 +34,7 @@ export class LambdaFunction {
     private logGroup: CloudWatchLogGroup;
 
     private handler: LambdaHandler | null = null;
+    private pendingEvaluation: Promise<void> | null = null;
     private evaluator: LambdaEvaluator;
 
     constructor(
@@ -99,6 +100,32 @@ export class LambdaFunction {
     }
 
     public async evaluate(): Promise<void> {
+        if (this.pendingEvaluation) {
+            return this.pendingEvaluation;
+        }
+
+        if (this.handler) {
+            return;
+        }
+
+        this.pendingEvaluation = this.doEvaluate();
+        try {
+            await this.pendingEvaluation;
+        } finally {
+            this.pendingEvaluation = null;
+        }
+    }
+
+    public async reload(): Promise<void> {
+        if (this.pendingEvaluation) {
+            await this.pendingEvaluation.catch(() => undefined);
+        }
+
+        this.handler = null;
+        await this.evaluate();
+    }
+
+    private async doEvaluate(): Promise<void> {
         const exports = await this.evaluator.evaluate();
 
         const handler = exports[this.handlerName];
