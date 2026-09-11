@@ -11,6 +11,11 @@ concurrency:
 jobs:
     publish:
         runs-on: ubuntu-latest
+
+        permissions:
+            contents: read
+            id-token: write # Required by SectorLabs/actions/configure-aws
+
         steps:
             - uses: actions/checkout@v4
 
@@ -35,3 +40,61 @@ jobs:
                   echo "//nexus.sector.sh/repository/yarn-empg/:_auth=${NPM_REGISTRY_TOKEN}" >> .npmrc
                   npm version --allow-same-version --no-git-tag-version ${RELEASE_TAG}
                   npm publish
+
+            # ── CodeArtifact dual-publish (best-effort) ──────────────────────
+            # Nexus above stays authoritative; the steps below additionally push
+            # the same package to CodeArtifact so consumers can migrate off Nexus
+            # independently. Every step is continue-on-error and gated on the
+            # previous one, so a CodeArtifact problem can never fail a release nor
+            # run a half-configured step. Flip continue-on-error to false once
+            # CodeArtifact becomes the required registry.
+            - name: Configure AWS (CodeArtifact)
+              id: codeartifact-aws
+              continue-on-error: true
+              uses: SectorLabs/actions/configure-aws@configure-aws-v2.2.0
+              with:
+                  role-arn: ${{ vars.ENVIRONMENT_PUBLISH_AWS_OIDC_IAM_ROLE_ARN }}
+
+            # Default shell (no `set -x`) so the token is never traced before
+            # ::add-mask:: registers it.
+            - name: Authenticate to CodeArtifact
+              id: codeartifact-auth
+              if: steps.codeartifact-aws.outcome == 'success'
+              continue-on-error: true
+              run: |
+                  TOKEN="$(aws codeartifact get-authorization-token \
+                    --domain sectorlabs --domain-owner 541024694663 --region eu-west-1 \
+                    --query authorizationToken --output text)"
+                  echo "::add-mask::$TOKEN"
+                  echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
+                  ENDPOINT="$(aws codeartifact get-repository-endpoint \
+                    --domain sectorlabs --domain-owner 541024694663 --region eu-west-1 \
+                    --repository npm-empg --format npm \
+                    --query repositoryEndpoint --output text)"
+                  echo "endpoint=$ENDPOINT" >> "$GITHUB_OUTPUT"
+
+            # `npm publish --registry` overrides publishConfig.registry on
+            # npm >= 10.8.2 (.nvmrc pins node 20.19.0 => npm 10.8.2), so
+            # package.json needs no mutation. The version was already set by the
+            # step above; the auth line is keyed on the CodeArtifact endpoint's
+            # own host and path, leaving the Nexus one untouched.
+            - name: Publish to CodeArtifact
+              id: codeartifact-publish
+              if: steps.codeartifact-auth.outcome == 'success'
+              continue-on-error: true
+              env:
+                  CODEARTIFACT_ENDPOINT: ${{ steps.codeartifact-auth.outputs.endpoint }}
+                  CODEARTIFACT_TOKEN: ${{ steps.codeartifact-auth.outputs.token }}
+              run: |
+                  echo "${CODEARTIFACT_ENDPOINT#https:}:_authToken=${CODEARTIFACT_TOKEN}" >> .npmrc
+                  npm publish --registry "${CODEARTIFACT_ENDPOINT}"
+
+            # continue-on-error hides a failed best-effort step in the UI, so
+            # surface the outcome explicitly.
+            - name: Report CodeArtifact result
+              if: always()
+              env:
+                  CODEARTIFACT_OUTCOME: ${{ steps.codeartifact-publish.outcome || 'not attempted' }}
+              run: |
+                  echo "CodeArtifact publish outcome for roughlyfront: $CODEARTIFACT_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
