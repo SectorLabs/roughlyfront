@@ -72,6 +72,6 @@
         "node": ">=18.0.0"
     },
     "publishConfig": {
-        "registry": "https://nexus.sector.sh/repository/yarn-empg/"
+        "registry": "https://sectorlabs-541024694663.d.codeartifact.eu-west-1.amazonaws.com/npm/npm-empg/"
     }
 }
