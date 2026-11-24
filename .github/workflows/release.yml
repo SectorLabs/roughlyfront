@@ -38,7 +38,7 @@ jobs:
               run: npm version --allow-same-version --no-git-tag-version "${RELEASE_TAG}"
 
             - name: Publish to CodeArtifact
-              uses: SectorLabs/actions/codeartifact-publish@5dfed53e9c49cd74e0731f3de4339bea60d15614 # codeartifact-publish-v1.0.0
+              uses: SectorLabs/actions/codeartifact-publish@codeartifact-publish-v1.0.0
               with:
                   role-arn: ${{ vars.ENVIRONMENT_PUBLISH_AWS_OIDC_IAM_ROLE_ARN }}
                   format: npm
